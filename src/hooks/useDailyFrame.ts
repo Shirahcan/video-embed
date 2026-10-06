@@ -12,8 +12,8 @@ import { diagnoseMediaError, type MediaDiagnosis } from '../diagnose';
  * - a TYPED failure (`failure.kind`), so the room can repair instead of showing Daily's raw
  *   "Meeting has ended" with a retry that reuses the dead URL;
  * - a DIAGNOSED device error (browser block vs OS block vs busy vs missing);
- * - the HOST's waiting list: people knocking on the private room, with admit / deny, so a
- *   knock is never lost in a corner of the frame.
+ * - the HOST's waiting list: who is knocking on the private room, so a knock is never lost
+ *   in a corner of the frame (admitting stays Daily's, see the note in the effect).
  */
 export type FrameState = 'idle' | 'loading' | 'ready' | 'joined' | 'left' | 'error';
 
@@ -41,9 +41,6 @@ export interface UseDailyFrameResult {
   deviceError: MediaDiagnosis | null;
   participantCount: number;
   waiting: WaitingPerson[];
-  admit: (id: string) => void;
-  deny: (id: string) => void;
-  admitAll: () => void;
   /** Tear the frame down and join again (with whatever `url` is now). */
   rejoin: () => void;
   /** Switch the frame's input devices without leaving the call. */
@@ -131,13 +128,11 @@ export function useDailyFrame({
             /* torn down mid-event */
           }
         };
-        const syncWaiting = () => {
-          try {
-            setWaiting(Object.values(frame.waitingParticipants() ?? {}).map((p) => ({ id: p.id, name: p.name })));
-          } catch {
-            /* not an owner, or torn down */
-          }
-        };
+        // ⚠ Prebuilt: waitingParticipants() and updateWaitingParticipant() are call-object-only
+        // (daily-js logs an error and does nothing). The EVENTS do reach the page, so the list
+        // is kept from them, and admitting stays with Daily's own request inside the frame.
+        const waitingFrom = (event: unknown) =>
+          (event as { participant?: { id: string; name: string } } | undefined)?.participant;
         const reveal = () => setState((s) => (s === 'joined' ? s : 'ready'));
 
         frame
@@ -147,7 +142,6 @@ export function useDailyFrame({
           .on('joined-meeting', () => {
             setState('joined');
             syncParticipants();
-            syncWaiting();
             handlersRef.current.onJoined?.();
           })
           .on('left-meeting', () => {
@@ -157,12 +151,19 @@ export function useDailyFrame({
           .on('participant-joined', syncParticipants)
           .on('participant-left', syncParticipants)
           .on('waiting-participant-added', (event) => {
-            syncWaiting();
-            const p = (event as { participant?: { id: string; name: string } } | undefined)?.participant;
-            if (p) handlersRef.current.onKnock?.({ id: p.id, name: p.name });
+            const p = waitingFrom(event);
+            if (!p) return;
+            setWaiting((w) => [...w.filter((x) => x.id !== p.id), { id: p.id, name: p.name }]);
+            handlersRef.current.onKnock?.({ id: p.id, name: p.name });
           })
-          .on('waiting-participant-updated', syncWaiting)
-          .on('waiting-participant-removed', syncWaiting)
+          .on('waiting-participant-updated', (event) => {
+            const p = waitingFrom(event);
+            if (p) setWaiting((w) => w.map((x) => (x.id === p.id ? { id: p.id, name: p.name } : x)));
+          })
+          .on('waiting-participant-removed', (event) => {
+            const p = waitingFrom(event);
+            if (p) setWaiting((w) => w.filter((x) => x.id !== p.id));
+          })
           .on('camera-error', (event) => {
             const raw = event as { error?: { type?: string; msg?: string }; errorMsg?: { errorMsg?: string; audioOk?: boolean } } | undefined;
             const type = raw?.error?.type ?? '';
@@ -214,23 +215,11 @@ export function useDailyFrame({
     // identity, not url: a re-minted token must not rebuild a live call. `nonce` rebuilds.
   }, [identity, enabled, nonce, containerRef]);
 
-  const decide = useCallback((ids: string[], grant: boolean) => {
-    const frame = frameRef.current;
-    if (!frame || ids.length === 0) return;
-    const updates = Object.fromEntries(ids.map((id) => [id, { grantRequestedAccess: grant }]));
-    void frame.updateWaitingParticipants(updates).catch(() => {});
-    setWaiting((w) => w.filter((p) => !ids.includes(p.id)));
-  }, []);
-
-  const admit = useCallback((id: string) => decide([id], true), [decide]);
-  const deny = useCallback((id: string) => decide([id], false), [decide]);
-  const admitAll = useCallback(() => decide(waiting.map((p) => p.id), true), [decide, waiting]);
-
   const setDevices = useCallback((devices: { audioDeviceId?: string; videoDeviceId?: string }) => {
     const frame = frameRef.current;
     if (!frame) return;
     void frame.setInputDevicesAsync(devices).then(() => setDeviceError(null)).catch(() => {});
   }, []);
 
-  return { state, failure, deviceError, participantCount, waiting, admit, deny, admitAll, rejoin, setDevices };
+  return { state, failure, deviceError, participantCount, waiting, rejoin, setDevices };
 }

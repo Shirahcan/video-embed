@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Handler = (event?: unknown) => void;
@@ -80,22 +80,21 @@ describe('CallFrame', () => {
     expect(screen.queryByRole('button', { name: 'Rejoin the call' })).toBeNull();
   });
 
-  it('shows the host who is knocking and lets them in', async () => {
+  it('tells the host who is knocking and where to let them in, without calling call-object APIs', async () => {
     const onKnock = vi.fn();
     render(<CallFrame url="https://shirah.daily.co/room?t=HOST" onKnock={onKnock} />);
     await waitFor(() => expect(frames.length).toBe(1));
+    const spy = vi.spyOn(latest(), 'waitingParticipants');
 
-    act(() => {
-      latest().waitingList = { w1: { id: 'w1', name: 'Maria Garcia' } };
-      latest().emit('waiting-participant-added', { participant: { id: 'w1', name: 'Maria Garcia' } });
-    });
+    act(() => latest().emit('waiting-participant-added', { participant: { id: 'w1', name: 'Maria Garcia' } }));
 
     expect(await screen.findByText('Maria Garcia is asking to join')).toBeTruthy();
+    expect(screen.getByText('Let them in from the request shown inside the call.')).toBeTruthy();
     expect(onKnock).toHaveBeenCalledWith({ id: 'w1', name: 'Maria Garcia' });
+    expect(spy).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Let in' }));
-    expect(latest().updates).toEqual([{ w1: { grantRequestedAccess: true } }]);
-    expect(screen.queryByText('Maria Garcia is asking to join')).toBeNull();
+    act(() => latest().emit('waiting-participant-removed', { participant: { id: 'w1', name: 'Maria Garcia' } }));
+    await waitFor(() => expect(screen.queryByText('Maria Garcia is asking to join')).toBeNull());
   });
 
   it('turns a blocked microphone into the fix', async () => {

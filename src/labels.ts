@@ -52,9 +52,7 @@ export interface VideoLabels {
   // Host: people knocking
   knockingOne: (name: string) => string;
   knockingMany: (count: number) => string;
-  admit: string;
-  admitAll: string;
-  deny: string;
+  knockingHint: string;
   // In-call device trouble
   deviceTroubleInCall: string;
   dismiss: string;
@@ -130,7 +128,7 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   speakerAsk: 'Did you hear the sound?',
   speakerYes: 'Yes',
   speakerNo: 'No',
-  speakerFix: 'Turn your volume up, unmute the computer, or pick another speaker above, then play it again.',
+  speakerFix: 'Turn your volume up, unmute the computer, or choose another speaker (above, or in your computer\x27s sound settings), then play it again.',
   speakerDefaultOnly: 'This browser plays sound through your system speaker; change it in your computer\'s sound settings.',
   allGood: 'Everything works. You are ready to join.',
   neverBlocks: 'Something not working? You can still join, and fix it from inside the call.',
@@ -204,9 +202,7 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   waitingForNetwork: 'Waiting for your connection...',
   knockingOne: (name) => `${name || 'Someone'} is asking to join`,
   knockingMany: (count) => `${count} people are asking to join`,
-  admit: 'Let in',
-  admitAll: 'Let everyone in',
-  deny: 'Deny',
+  knockingHint: 'Let them in from the request shown inside the call.',
   deviceTroubleInCall: 'Your camera or microphone stopped working.',
   dismiss: 'Dismiss',
 };

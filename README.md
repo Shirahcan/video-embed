@@ -28,7 +28,7 @@ import '@shirahcan/video-embed/styles.css';
 | Device busy, missing, or picked one fails | Retries the default device and says so | Switch microphone or camera without leaving |
 | Silent microphone | Live meter; "we cannot hear anything" after 4 s | |
 | Sound going nowhere | Test tone + "Did you hear it?" + speaker picker where the browser allows | |
-| Someone knocking (old or pasted link) | | `KnockBar` above the call for the host: Let in / Deny / Let everyone in, plus `onKnock` for a sound |
+| Someone knocking (old or pasted link) | | `KnockBar` above the call for the host: who is knocking, a chime, and where to let them in (with Prebuilt, admitting is only possible from Daily's own request in the frame; `updateWaitingParticipant` is call-object-only). `onKnock` for the product's own record |
 
 Every failure is reported through `onFailure(failure, outcome)` so the product can keep a
 record (retroactive).
@@ -57,7 +57,7 @@ size the stage with `--ve-stage-height`.
 
 | Export | Does |
 |---|---|
-| `useDailyFrame` | the Daily frame: StrictMode-safe, typed `failure`, diagnosed `deviceError`, `waiting` + admit/deny, `setDevices`, `rejoin` |
+| `useDailyFrame` | the Daily frame: StrictMode-safe, typed `failure`, diagnosed `deviceError`, `waiting` (from the knock events), `setDevices`, `rejoin` |
 | `useMediaCheck` | mic meter, camera preview, speaker tone, device lists, diagnosis, auto-fix |
 | `classifyCallError`, `REPAIRABLE` | Daily's fatal error -> kind; which kinds a fresh join can fix |
 | `diagnoseMediaError`, `browserFamily` | getUserMedia error -> cause; which browser's steps to show |

@@ -115,7 +115,7 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
 
   return (
     <div className={cx('ve-call', className)} style={style}>
-      <KnockBar waiting={frame.waiting} admit={frame.admit} deny={frame.deny} admitAll={frame.admitAll} />
+      <KnockBar waiting={frame.waiting} />
 
       {frame.deviceError && !deviceBannerHidden ? (
         <div className="ve-banner" role="status">
@@ -128,6 +128,25 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
           </button>
         </div>
       ) : null}
+
+      {frame.state === 'joined' || frame.state === 'ready' ? (
+        <div className="ve-toolbar">
+          <button type="button" className={cx('ve-btn', classNames.button)} onClick={() => setTroubleOpen((o) => !o)} aria-expanded={troubleOpen}>
+            {labels.troubleOpen}
+          </button>
+        </div>
+      ) : null}
+
+      <Troubleshooter
+        open={troubleOpen}
+        onClose={() => setTroubleOpen(false)}
+        diagnosis={frame.deviceError}
+        setDevices={frame.setDevices}
+        rejoin={() => {
+          setTroubleOpen(false);
+          frame.rejoin();
+        }}
+      />
 
       <div className="ve-stage">
         <div ref={containerRef} className="ve-frame" />
@@ -156,22 +175,7 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
           </div>
         ) : null}
 
-        {frame.state === 'joined' || frame.state === 'ready' ? (
-          <button type="button" className={cx('ve-help', classNames.button)} onClick={() => setTroubleOpen((o) => !o)} aria-expanded={troubleOpen}>
-            {labels.troubleOpen}
-          </button>
-        ) : null}
 
-        <Troubleshooter
-          open={troubleOpen}
-          onClose={() => setTroubleOpen(false)}
-          diagnosis={frame.deviceError}
-          setDevices={frame.setDevices}
-          rejoin={() => {
-            setTroubleOpen(false);
-            frame.rejoin();
-          }}
-        />
       </div>
     </div>
   );
