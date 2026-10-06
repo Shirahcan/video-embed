@@ -1,0 +1,178 @@
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { REPAIRABLE, type CallFailure, type CallFailureKind } from '../callErrors';
+import type { MediaDiagnosis } from '../diagnose';
+import { useDailyFrame, type WaitingPerson } from '../hooks/useDailyFrame';
+import { cx, useVideoUi } from '../theme';
+import { KnockBar } from './KnockBar';
+import { Troubleshooter } from './Troubleshooter';
+
+export type RecoveryStatus = 'idle' | 'repairing' | 'repaired' | 'failed' | 'offline';
+
+export interface CallFrameProps {
+  /** The tokened join URL the product's backend handed out. */
+  url: string;
+  /**
+   * Ask the product for a FRESH join after a failure. The product's backend repairs the room
+   * (same name, so every link still works), mints a new token and returns the new URL.
+   * Without it, a failure can only be rejoined as-is.
+   */
+  fetchFreshUrl?: (why: CallFailureKind) => Promise<string>;
+  onJoined?: () => void;
+  onLeft?: () => void;
+  /** Every failure and its outcome, for the product's own record. */
+  onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
+  onDeviceError?: (diagnosis: MediaDiagnosis) => void;
+  onKnock?: (person: WaitingPerson) => void;
+  /** Hide the frame (another tab holds the call). */
+  enabled?: boolean;
+  className?: string;
+  style?: CSSProperties;
+}
+
+/** The call: Daily Prebuilt plus typed failures, automatic repair, the knock bar and help. */
+export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, enabled = true, className, style }: CallFrameProps) {
+  const { labels, classNames } = useVideoUi();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [joinUrl, setJoinUrl] = useState(url);
+  const [recovery, setRecovery] = useState<RecoveryStatus>('idle');
+  const [troubleOpen, setTroubleOpen] = useState(false);
+  const [deviceBannerHidden, setDeviceBannerHidden] = useState(false);
+  const autoTried = useRef(false);
+  const rejoinRef = useRef<() => void>(() => {});
+
+  // A new URL from the product (a later join) replaces ours.
+  const [seenUrl, setSeenUrl] = useState(url);
+  if (url !== seenUrl) {
+    setSeenUrl(url);
+    setJoinUrl(url);
+  }
+
+  const repair = useCallback(async (failure: CallFailure) => {
+    if (!fetchFreshUrl) return;
+    setRecovery('repairing');
+    try {
+      const next = await fetchFreshUrl(failure.kind);
+      setJoinUrl(next);
+      setRecovery('repaired');
+      onFailure?.(failure, 'repaired');
+      rejoinRef.current();
+    } catch {
+      setRecovery('failed');
+      onFailure?.(failure, 'failed');
+    }
+  }, [fetchFreshUrl, onFailure]);
+
+  const handleFailure = useCallback((failure: CallFailure) => {
+    if (failure.kind === 'network') {
+      setRecovery(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'idle');
+      onFailure?.(failure, 'offline');
+      return;
+    }
+    // Once automatically; after that the person decides (a loop would hammer the room).
+    if (REPAIRABLE.has(failure.kind) && fetchFreshUrl && !autoTried.current) {
+      autoTried.current = true;
+      void repair(failure);
+      return;
+    }
+    onFailure?.(failure, 'idle');
+  }, [fetchFreshUrl, onFailure, repair]);
+
+  const frame = useDailyFrame({
+    containerRef,
+    url: joinUrl,
+    enabled,
+    onJoined: () => {
+      autoTried.current = false;
+      setRecovery('idle');
+      onJoined?.();
+    },
+    onLeft,
+    onDeviceError: (d) => {
+      setDeviceBannerHidden(false);
+      onDeviceError?.(d);
+    },
+    onFailure: handleFailure,
+    onKnock,
+  });
+
+  useEffect(() => {
+    rejoinRef.current = frame.rejoin;
+  }, [frame.rejoin]);
+
+  // Back online: rejoin by itself.
+  useEffect(() => {
+    if (recovery !== 'offline') return undefined;
+    const onOnline = () => {
+      setRecovery('idle');
+      frame.rejoin();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [recovery, frame.rejoin, frame]);
+
+  const failure = frame.failure;
+  const showFailure = frame.state === 'error' && failure !== null;
+
+  return (
+    <div className={cx('ve-call', className)} style={style}>
+      <KnockBar waiting={frame.waiting} admit={frame.admit} deny={frame.deny} admitAll={frame.admitAll} />
+
+      {frame.deviceError && !deviceBannerHidden ? (
+        <div className="ve-banner" role="status">
+          <span>{labels.problemTitle(frame.deviceError.problem, frame.deviceError.device)}</span>
+          <button type="button" className={cx('ve-btn', classNames.button)} onClick={() => setTroubleOpen(true)}>
+            {labels.troubleOpen}
+          </button>
+          <button type="button" className={cx('ve-btn', classNames.button)} onClick={() => setDeviceBannerHidden(true)}>
+            {labels.dismiss}
+          </button>
+        </div>
+      ) : null}
+
+      <div className="ve-stage">
+        <div ref={containerRef} className="ve-frame" />
+
+        {frame.state === 'loading' ? <div className="ve-overlay"><p>{labels.connecting}</p></div> : null}
+
+        {showFailure ? (
+          <div className={cx('ve-overlay ve-overlay--failure', classNames.recovery)} role="alert">
+            <p className="ve-overlay__title">{labels.failureTitle(failure.kind)}</p>
+            <p className="ve-overlay__detail">
+              {recovery === 'repairing' ? labels.repairing
+                : recovery === 'repaired' ? labels.repaired
+                  : recovery === 'failed' ? labels.repairFailed
+                    : recovery === 'offline' ? labels.waitingForNetwork
+                      : labels.failureDetail(failure.kind)}
+            </p>
+            {recovery !== 'repairing' && recovery !== 'offline' && failure.kind !== 'ejected' ? (
+              <button
+                type="button"
+                className={cx('ve-btn ve-btn--primary', classNames.button, classNames.buttonPrimary)}
+                onClick={() => (REPAIRABLE.has(failure.kind) && fetchFreshUrl ? void repair(failure) : frame.rejoin())}
+              >
+                {recovery === 'failed' ? labels.tryAgain : labels.rejoin}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {frame.state === 'joined' || frame.state === 'ready' ? (
+          <button type="button" className={cx('ve-help', classNames.button)} onClick={() => setTroubleOpen((o) => !o)} aria-expanded={troubleOpen}>
+            {labels.troubleOpen}
+          </button>
+        ) : null}
+
+        <Troubleshooter
+          open={troubleOpen}
+          onClose={() => setTroubleOpen(false)}
+          diagnosis={frame.deviceError}
+          setDevices={frame.setDevices}
+          rejoin={() => {
+            setTroubleOpen(false);
+            frame.rejoin();
+          }}
+        />
+      </div>
+    </div>
+  );
+}
