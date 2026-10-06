@@ -170,8 +170,8 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
       case 'room-missing':
       case 'room-expired':
       case 'not-allowed':
+      case 'not-open-yet':
       case 'token-expired': return 'The meeting room needs a moment';
-      case 'not-open-yet': return 'The room is not open yet';
       case 'ejected': return 'You were removed from the call';
       case 'meeting-full': return 'The call is full';
       case 'unsupported-browser': return 'This browser is too old for the call';
@@ -184,8 +184,8 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
       case 'room-missing':
       case 'room-expired':
       case 'not-allowed':
-      case 'token-expired': return 'We are fixing the room and letting you back in. Your link stays the same.';
-      case 'not-open-yet': return 'Rooms open shortly before the meeting starts.';
+      case 'not-open-yet':
+      case 'token-expired': return 'We are fixing the room and letting you in. Your link stays the same.';
       case 'ejected': return 'If that was a mistake, ask the host to let you back in.';
       case 'meeting-full': return 'Ask the host to make room, then rejoin.';
       case 'unsupported-browser': return 'Open the meeting in an up-to-date Chrome, Edge, Safari or Firefox.';

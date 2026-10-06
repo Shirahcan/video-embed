@@ -32,9 +32,15 @@ export interface CallFailure {
   message: string;
 }
 
-/** Kinds a fresh join (repaired room, new token) can fix without a person deciding. */
+
+/**
+ * Kinds a fresh join (repaired room, new token) can fix without a person deciding.
+ * `not-open-yet` is here on purpose: the product only offers Join while ITS window is open, so
+ * Daily still refusing means a reschedule never reached the room, and the repair opens it.
+ */
 export const REPAIRABLE: ReadonlySet<CallFailureKind> = new Set([
   'room-missing',
+  'not-open-yet',
   'room-expired',
   'token-expired',
   'not-allowed',

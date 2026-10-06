@@ -29,6 +29,7 @@ describe('classifyCallError', () => {
   it('repairs room and token kinds, never an ejection', () => {
     expect(REPAIRABLE.has('room-expired')).toBe(true);
     expect(REPAIRABLE.has('not-allowed')).toBe(true);
+    expect(REPAIRABLE.has('not-open-yet')).toBe(true);
     expect(REPAIRABLE.has('ejected')).toBe(false);
     expect(REPAIRABLE.has('network')).toBe(false);
   });
