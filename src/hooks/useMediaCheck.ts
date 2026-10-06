@@ -18,8 +18,8 @@ import {
  * device is opened on its own). Devices are released on `stop()` and on unmount, so the
  * call itself can open them.
  */
-export type MicStatus = 'idle' | 'checking' | 'heard' | 'silent' | 'error';
-export type CameraStatus = 'idle' | 'checking' | 'ok' | 'error';
+export type MicStatus = 'idle' | 'asking' | 'checking' | 'heard' | 'silent' | 'error';
+export type CameraStatus = 'idle' | 'asking' | 'checking' | 'ok' | 'error';
 export type SpeakerStatus = 'idle' | 'playing' | 'asking' | 'heard' | 'not-heard';
 
 export interface DeviceOption {
@@ -119,10 +119,13 @@ export function useMediaCheck(): MediaCheck {
 
   const startMic = useCallback(async (deviceId: string) => {
     stopMic();
-    setMic({ status: 'checking', level: 0, diagnosis: null, deviceId });
+    // 'asking' until the browser hands over the device: its permission prompt can sit there,
+    // and "say something" while nothing is listening sends people talking to a dead mic.
+    setMic({ status: 'asking', level: 0, diagnosis: null, deviceId });
     try {
       const stream = await open('audio', deviceId);
       micStream.current = stream;
+      setMic((m) => ({ ...m, status: 'checking' }));
       const active = stream.getAudioTracks()[0]?.getSettings().deviceId ?? deviceId;
       setMic((m) => ({ ...m, deviceId: active }));
       void refreshDevices();
@@ -162,7 +165,7 @@ export function useMediaCheck(): MediaCheck {
 
   const startCamera = useCallback(async (deviceId: string) => {
     stopCamera();
-    setCamera({ status: 'checking', stream: null, diagnosis: null, deviceId });
+    setCamera({ status: 'asking', stream: null, diagnosis: null, deviceId });
     try {
       const stream = await open('video', deviceId);
       camStream.current = stream;

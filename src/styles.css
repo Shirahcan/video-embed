@@ -40,6 +40,7 @@
 
 /* Device check */
 .ve-check { font-family: var(--ve-font); color: var(--ve-ink); background: color-mix(in srgb, var(--ve-surface) 70%, transparent); border: 1px solid var(--ve-surface); border-radius: var(--ve-radius); padding: 20px; display: grid; gap: 14px; backdrop-filter: blur(16px); }
+.ve-check > .ve-btn, .ve-row > .ve-btn { justify-self: start; }
 .ve-check__title { margin: 0; font-size: 15px; font-weight: 600; }
 .ve-check__intro { margin: 2px 0 0; font-size: 13px; color: var(--ve-ink-muted); }
 .ve-check__rows { display: grid; gap: 12px; }

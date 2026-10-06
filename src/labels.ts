@@ -16,6 +16,8 @@ export interface VideoLabels {
   camera: string;
   speaker: string;
   micListening: string;
+  waitingForPermission: string;
+  permissionHint: string;
   micHeard: string;
   micSilent: string;
   cameraOk: string;
@@ -117,6 +119,8 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   camera: 'Camera',
   speaker: 'Speaker',
   micListening: 'Say something...',
+  waitingForPermission: 'Allow it when your browser asks',
+  permissionHint: 'Your browser is asking to use your microphone and camera, usually near the address bar. Choose Allow.',
   micHeard: 'We can hear you',
   micSilent: 'We cannot hear anything yet',
   cameraOk: 'Your camera works',

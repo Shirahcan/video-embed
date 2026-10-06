@@ -64,11 +64,12 @@ export function DeviceCheck({ className, autoStart = false }: DeviceCheckProps) 
         </button>
       ) : (
         <div className="ve-check__rows">
+          {mic.status === 'asking' || camera.status === 'asking' ? <p className="ve-hint ve-hint--warn" role="status">{labels.permissionHint}</p> : null}
           <div className="ve-row">
             <div className="ve-row__head">
               <span className="ve-row__name">{labels.microphone}</span>
               <span className={cx('ve-pill', mic.status === 'heard' && 've-pill--ok', (mic.status === 'silent' || mic.status === 'error') && 've-pill--warn')}>
-                {mic.status === 'heard' ? labels.micHeard : mic.status === 'silent' || mic.status === 'error' ? labels.micSilent : labels.micListening}
+                {mic.status === 'heard' ? labels.micHeard : mic.status === 'silent' || mic.status === 'error' ? labels.micSilent : mic.status === 'asking' ? labels.waitingForPermission : labels.micListening}
               </span>
             </div>
             <div className="ve-meter" aria-hidden="true">
@@ -82,7 +83,7 @@ export function DeviceCheck({ className, autoStart = false }: DeviceCheckProps) 
             <div className="ve-row__head">
               <span className="ve-row__name">{labels.camera}</span>
               <span className={cx('ve-pill', camera.status === 'ok' && 've-pill--ok', camera.status === 'error' && 've-pill--warn')}>
-                {camera.status === 'ok' ? labels.cameraOk : camera.status === 'error' ? labels.cameraOff : '...'}
+                {camera.status === 'ok' ? labels.cameraOk : camera.status === 'error' ? labels.cameraOff : labels.waitingForPermission}
               </span>
             </div>
             {camera.stream ? <Preview stream={camera.stream} /> : null}
