@@ -65,6 +65,7 @@ export interface VideoLabels {
   leftKeepOpen: string;
   callEnded: string;
   callEndedDetail: string;
+  callEndedByYouDetail: string;
   // In-call device trouble
   deviceTroubleInCall: string;
   dismiss: string;
@@ -226,6 +227,7 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   leftKeepOpen: 'Leave it open and the others can carry on; it ends by itself once everyone has gone.',
   callEnded: 'This call has ended',
   callEndedDetail: 'The host ended the call for everyone. You can close this page.',
+  callEndedByYouDetail: 'You ended the call for everyone.',
   deviceTroubleInCall: 'Your camera or microphone stopped working.',
   dismiss: 'Dismiss',
 };

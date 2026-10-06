@@ -35,6 +35,13 @@ export interface CallFrameProps {
    * of being repaired, or reading as a removal.
    */
   checkEnded?: () => Promise<boolean>;
+  /**
+   * The call is over for this viewer: `by-me` when this host just ended it, `ended` when it
+   * was ended for them (a host, the room's close, sitting empty). The product decides where
+   * to take them next (owner 2026-10-06: a host who ended it on purpose leaves at once;
+   * anyone else sees the notice briefly first).
+   */
+  onEnded?: (how: 'by-me' | 'ended') => void;
   /** Hide the frame (another tab holds the call). */
   enabled?: boolean;
   className?: string;
@@ -45,7 +52,7 @@ export interface CallFrameProps {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, enabled = true, className, style }: CallFrameProps) {
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
   const [joinUrl, setJoinUrl] = useState(url);
@@ -59,6 +66,11 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
   const [endStep, setEndStep] = useState<EndStep>('none');
   const [endError, setEndError] = useState(false);
   const endedRef = useRef(false);
+  const [endedByMe, setEndedByMe] = useState(false);
+  const onEndedRef = useRef(onEnded);
+  useEffect(() => {
+    onEndedRef.current = onEnded;
+  }, [onEnded]);
   const autoTried = useRef(false);
   const rejoinRef = useRef<() => void>(() => {});
 
@@ -84,9 +96,12 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
     }
   }, [fetchFreshUrl, onFailure]);
 
-  const markEnded = useCallback(() => {
+  const markEnded = useCallback((how: 'by-me' | 'ended' = 'ended') => {
+    if (endedRef.current) return;
     endedRef.current = true;
+    setEndedByMe(how === 'by-me');
     setEndStep('ended');
+    onEndedRef.current?.(how);
   }, []);
 
   const handleFailure = useCallback(async (failure: CallFailure) => {
@@ -164,7 +179,7 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
     setEndError(false);
     try {
       await onEndForEveryone();
-      markEnded();
+      markEnded('by-me');
     } catch {
       setEndError(true);
       setEndStep(from === 'left-host' ? 'left-host' : 'confirm');
@@ -257,7 +272,7 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
         {ended ? (
           <div className="ve-overlay" role="status">
             <p className="ve-overlay__title">{labels.callEnded}</p>
-            <p className="ve-overlay__detail">{labels.callEndedDetail}</p>
+            <p className="ve-overlay__detail">{endedByMe ? labels.callEndedByYouDetail : labels.callEndedDetail}</p>
           </div>
         ) : null}
 

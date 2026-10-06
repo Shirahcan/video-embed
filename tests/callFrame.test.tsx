@@ -124,7 +124,8 @@ describe('CallFrame', () => {
   });
   it('lets a host end the call for everyone after confirming, then reads ended', async () => {
     const onEnd = vi.fn().mockResolvedValue(undefined);
-    render(<CallFrame url="https://shirah.daily.co/room?t=HOST" onEndForEveryone={onEnd} />);
+    const onEnded = vi.fn();
+    render(<CallFrame url="https://shirah.daily.co/room?t=HOST" onEndForEveryone={onEnd} onEnded={onEnded} />);
     await waitFor(() => expect(frames.length).toBe(1));
     act(() => latest().emit('joined-meeting'));
 
@@ -136,6 +137,8 @@ describe('CallFrame', () => {
     act(() => confirm.click());
     await waitFor(() => expect(onEnd).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('This call has ended')).toBeTruthy();
+    expect(screen.getByText('You ended the call for everyone.')).toBeTruthy();
+    expect(onEnded).toHaveBeenCalledWith('by-me');
 
     // The host's own ejection that follows is not a failure to repair.
     act(() => latest().emit('error', { errorMsg: 'You were ejected', error: { type: 'ejected', msg: 'ejected' } }));
@@ -157,7 +160,8 @@ describe('CallFrame', () => {
 
   it('never offers ending to a guest, and reads a removal the product calls ended as ended', async () => {
     const fetchFreshUrl = vi.fn();
-    render(<CallFrame url="https://shirah.daily.co/room?t=GUEST" fetchFreshUrl={fetchFreshUrl} checkEnded={() => Promise.resolve(true)} />);
+    const onEnded = vi.fn();
+    render(<CallFrame url="https://shirah.daily.co/room?t=GUEST" fetchFreshUrl={fetchFreshUrl} checkEnded={() => Promise.resolve(true)} onEnded={onEnded} />);
     await waitFor(() => expect(frames.length).toBe(1));
     act(() => latest().emit('joined-meeting'));
     expect(screen.queryByRole('button', { name: 'End for everyone' })).toBeNull();
@@ -168,5 +172,6 @@ describe('CallFrame', () => {
     act(() => latest().emit('error', { errorMsg: 'Meeting has ended', error: { type: 'exp-room', msg: 'Meeting has ended' } }));
     expect(await screen.findByText('This call has ended')).toBeTruthy();
     expect(fetchFreshUrl).not.toHaveBeenCalled();
+    expect(onEnded).toHaveBeenCalledWith('ended');
   });
 });
