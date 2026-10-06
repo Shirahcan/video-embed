@@ -1,3 +1,5 @@
+export { callWindowPhase, isCallJoinable, useCallWindowPhase } from './callWindow';
+export type { CallWindowPhase, CallWindowTimes } from './callWindow';
 export { classifyCallError, REPAIRABLE } from './callErrors';
 export type { CallFailure, CallFailureKind } from './callErrors';
 export { browserFamily, currentBrowser, diagnoseMediaError, mediaAvailability, rms, SIGNAL_THRESHOLD } from './diagnose';
