@@ -28,4 +28,10 @@ describe('TranscriptStatus', () => {
     expect(screen.getByText('Not transcribed')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Add transcript' })).toBeTruthy();
   });
+
+  it('says the product sentence when it could not ask the service', () => {
+    render(<TranscriptStatus state="overdue" detail="This call ended without a transcript." onAdd={vi.fn()} />);
+    expect(screen.getByText('This call ended without a transcript.')).toBeTruthy();
+    expect(screen.queryByText(/60 minutes/)).toBeNull();
+  });
 });

@@ -19,8 +19,14 @@ export interface TranscriptStatusProps {
   expectedByLabel?: string | null;
   /** The service's `ready_within_minutes`, for the "usually within" sentence. */
   readyWithinMinutes?: number;
-  /** The product's own reason, shown under `unknown` (or to add detail to any state). */
+  /** The product's own reason, shown under `unknown`. */
   reason?: string | null;
+  /**
+   * The product's own sentence IN PLACE OF the state's default. For a product that could not
+   * ask the service (no room yet, service off) and so cannot honestly claim the service's
+   * timings ("more than 60 minutes ago").
+   */
+  detail?: string | null;
   /** Offered where a record can sensibly be added by hand; absent hides the button. */
   onAdd?: () => void;
   /** Extra actions (view, download) once the product holds the transcript. */
@@ -41,10 +47,10 @@ const ADDABLE: ReadonlySet<TranscriptState> = new Set(['not_transcribed', 'no_ca
  * is offered only where a record by hand makes sense (never while one is on its way, which
  * would leave two records of one call).
  */
-export function TranscriptStatus({ state, expectedByLabel, readyWithinMinutes = 60, reason, onAdd, actions, className }: TranscriptStatusProps) {
+export function TranscriptStatus({ state, expectedByLabel, readyWithinMinutes = 60, reason, detail: override, onAdd, actions, className }: TranscriptStatusProps) {
   const { labels, classNames } = useVideoUi();
   const calm = CALM.has(state);
-  const detail = labels.transcriptDetail(state, { expectedByLabel: expectedByLabel ?? null, readyWithinMinutes });
+  const detail = override?.trim() ? override : labels.transcriptDetail(state, { expectedByLabel: expectedByLabel ?? null, readyWithinMinutes });
 
   return (
     <div className={cx('ve-transcript', calm ? 've-transcript--calm' : 've-transcript--warn', classNames.transcript, className)} role="status">
