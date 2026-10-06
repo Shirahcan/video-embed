@@ -36,6 +36,10 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
   const [joinUrl, setJoinUrl] = useState(url);
   const [recovery, setRecovery] = useState<RecoveryStatus>('idle');
   const [troubleOpen, setTroubleOpen] = useState(false);
+  // Daily's pre-join screen can sit waiting on the BROWSER's camera/microphone prompt, which is
+  // outside the page and easy to miss: no Join button shows until it is answered. After a while
+  // on that screen, say so (found in the 2026-10-06 browser pass).
+  const [prejoinLong, setPrejoinLong] = useState(false);
   const [deviceBannerHidden, setDeviceBannerHidden] = useState(false);
   const autoTried = useRef(false);
   const rejoinRef = useRef<() => void>(() => {});
@@ -99,6 +103,13 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
     rejoinRef.current = frame.rejoin;
   }, [frame.rejoin]);
 
+  // 20 seconds on Daily's pre-join screen without joining: likely a browser prompt nobody saw.
+  useEffect(() => {
+    if (frame.state !== 'ready') return undefined;
+    const t = setTimeout(() => setPrejoinLong(true), 20_000);
+    return () => clearTimeout(t);
+  }, [frame.state]);
+
   // Back online: rejoin by itself.
   useEffect(() => {
     if (recovery !== 'offline') return undefined;
@@ -127,6 +138,10 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
             {labels.dismiss}
           </button>
         </div>
+      ) : null}
+
+      {frame.state === 'ready' && prejoinLong ? (
+        <p className="ve-hint ve-hint--warn ve-prejoin-hint" role="status">{labels.prejoinPermissionHint}</p>
       ) : null}
 
       {frame.state === 'joined' || frame.state === 'ready' ? (
