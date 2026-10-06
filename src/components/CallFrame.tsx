@@ -49,6 +49,25 @@ export interface CallFrameProps {
 }
 
 /** The call: Daily Prebuilt plus typed failures, automatic repair, the knock bar and help. */
+/**
+ * Is the browser still asking for the camera or microphone? Where the Permissions API cannot
+ * say (older Safari, Firefox for the camera), assume it may be: the hint is the only way a
+ * person learns about a prompt they cannot see.
+ */
+async function stillAsking(): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.permissions?.query) return true;
+  try {
+    const states = await Promise.all(
+      (['camera', 'microphone'] as const).map((name) =>
+        navigator.permissions.query({ name: name as PermissionName }).then((s) => s.state, () => 'prompt' as PermissionState),
+      ),
+    );
+    return states.some((s) => s === 'prompt');
+  } catch {
+    return true;
+  }
+}
+
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
@@ -155,10 +174,20 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
   }, [frame.rejoin]);
 
   // 20 seconds on Daily's pre-join screen without joining: likely a browser prompt nobody saw.
+  // Only when the browser IS still asking: with access already granted, Daily's Join button is
+  // on screen and the hint "No Join button?" would be wrong (found in the 2026-10-06 pass).
   useEffect(() => {
     if (frame.state !== 'ready') return undefined;
-    const t = setTimeout(() => setPrejoinLong(true), 20_000);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    const t = setTimeout(() => {
+      void stillAsking().then((asking) => {
+        if (!cancelled && asking) setPrejoinLong(true);
+      });
+    }, 20_000);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [frame.state]);
 
   // Back online: rejoin by itself.
