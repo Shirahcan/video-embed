@@ -23,6 +23,7 @@ export interface VideoClassNames {
   troubleshooter?: string;
   knockBar?: string;
   recovery?: string;
+  transcript?: string;
   button?: string;
   buttonPrimary?: string;
 }

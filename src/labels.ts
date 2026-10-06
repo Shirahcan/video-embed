@@ -1,4 +1,5 @@
 import type { CallFailureKind } from './callErrors';
+import type { TranscriptState } from './components/TranscriptStatus';
 import type { BrowserFamily, MediaDevice, MediaProblem } from './diagnose';
 
 /**
@@ -66,6 +67,10 @@ export interface VideoLabels {
   callEnded: string;
   callEndedDetail: string;
   callEndedByYouDetail: string;
+  // Call transcript
+  transcriptTitle: (state: TranscriptState) => string;
+  transcriptDetail: (state: TranscriptState, ctx: { expectedByLabel: string | null; readyWithinMinutes: number }) => string;
+  transcriptAdd: string;
   // In-call device trouble
   deviceTroubleInCall: string;
   dismiss: string;
@@ -228,6 +233,32 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   callEnded: 'This call has ended',
   callEndedDetail: 'The host ended the call for everyone. You can close this page.',
   callEndedByYouDetail: 'You ended the call for everyone.',
+  transcriptTitle: (state) => {
+    switch (state) {
+      case 'preparing': return 'Transcript on its way';
+      case 'ready': return 'Transcript ready';
+      case 'overdue': return 'No transcript yet';
+      case 'not_transcribed': return 'Not transcribed';
+      case 'no_call': return 'No call held here';
+      case 'unknown': return 'Transcript status unavailable';
+      default: return 'Call transcript';
+    }
+  },
+  transcriptDetail: (state, { expectedByLabel, readyWithinMinutes }) => {
+    switch (state) {
+      case 'not_started': return 'The call has not started. It is transcribed while it runs. If you held it somewhere else, you can add the record.';
+      case 'in_call': return 'The call is on now. Its transcript arrives after it ends.';
+      case 'preparing': return expectedByLabel
+        ? `The call has ended and the transcript is being prepared. Expect it ${expectedByLabel}.`
+        : `The call has ended and the transcript is being prepared. It usually arrives within ${readyWithinMinutes} minutes.`;
+      case 'ready': return 'The transcript is ready and being collected.';
+      case 'overdue': return `The call ended more than ${readyWithinMinutes} minutes ago and no transcript arrived. If you have a record of the call, add it.`;
+      case 'not_transcribed': return 'Transcription was off for this call, so there is no transcript. If you have a record of the call, add it.';
+      case 'no_call': return 'Nobody joined this call on the platform. If it happened somewhere else, add the record.';
+      default: return 'We could not check on the transcript just now.';
+    }
+  },
+  transcriptAdd: 'Add transcript',
   deviceTroubleInCall: 'Your camera or microphone stopped working.',
   dismiss: 'Dismiss',
 };

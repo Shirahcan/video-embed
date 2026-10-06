@@ -17,3 +17,5 @@ export type { DeviceCheckProps } from './components/DeviceCheck';
 export { KnockBar } from './components/KnockBar';
 export { ProblemCard } from './components/ProblemCard';
 export { Troubleshooter } from './components/Troubleshooter';
+export { TranscriptStatus } from './components/TranscriptStatus';
+export type { TranscriptState, TranscriptStatusProps } from './components/TranscriptStatus';
