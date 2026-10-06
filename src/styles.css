@@ -87,3 +87,13 @@
   .ve-knock { animation: none; }
   .ve-meter__fill { transition: none; }
 }
+
+/* Ending the call */
+.ve-btn--danger { color: #b91c1c; border-color: #fecaca; }
+.ve-btn--danger:hover { background: #fef2f2; }
+.ve-btn--danger-solid { background: #dc2626; border-color: #dc2626; color: #fff; }
+.ve-btn--danger-solid:hover { background: #b91c1c; }
+.ve-btn:disabled { opacity: 0.6; cursor: default; }
+.ve-overlay--end { background: rgba(15, 23, 42, 0.92); z-index: 20; }
+.ve-overlay__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
+.ve-overlay__fine { margin: 4px 0 0; max-width: 420px; font-size: 12px; color: #94a3b8; }

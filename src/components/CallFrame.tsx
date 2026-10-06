@@ -23,6 +23,18 @@ export interface CallFrameProps {
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
   onKnock?: (person: WaitingPerson) => void;
+  /**
+   * The viewer is a HOST and may end the call for everyone. The product's backend removes
+   * everyone and closes the room; resolve once it has. Offered in the toolbar, and again when
+   * the host leaves by the call's own Leave button. Absent = the viewer can only leave.
+   */
+  onEndForEveryone?: () => Promise<void>;
+  /**
+   * Ask the product whether the call was ENDED (by a host, or for sitting empty). Checked
+   * before repairing a failure and on removal, so a call that is over reads "ended" instead
+   * of being repaired, or reading as a removal.
+   */
+  checkEnded?: () => Promise<boolean>;
   /** Hide the frame (another tab holds the call). */
   enabled?: boolean;
   className?: string;
@@ -30,7 +42,10 @@ export interface CallFrameProps {
 }
 
 /** The call: Daily Prebuilt plus typed failures, automatic repair, the knock bar and help. */
-export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, enabled = true, className, style }: CallFrameProps) {
+/** Ending the call: the host's confirm, the request, and the call being over for everyone. */
+type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
+
+export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, enabled = true, className, style }: CallFrameProps) {
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
   const [joinUrl, setJoinUrl] = useState(url);
@@ -41,6 +56,9 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
   // on that screen, say so (found in the 2026-10-06 browser pass).
   const [prejoinLong, setPrejoinLong] = useState(false);
   const [deviceBannerHidden, setDeviceBannerHidden] = useState(false);
+  const [endStep, setEndStep] = useState<EndStep>('none');
+  const [endError, setEndError] = useState(false);
+  const endedRef = useRef(false);
   const autoTried = useRef(false);
   const rejoinRef = useRef<() => void>(() => {});
 
@@ -66,7 +84,21 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
     }
   }, [fetchFreshUrl, onFailure]);
 
-  const handleFailure = useCallback((failure: CallFailure) => {
+  const markEnded = useCallback(() => {
+    endedRef.current = true;
+    setEndStep('ended');
+  }, []);
+
+  const handleFailure = useCallback(async (failure: CallFailure) => {
+    // Over for everyone: nothing to repair and nobody removed this person on purpose.
+    if (endedRef.current) return;
+    if (checkEnded && (failure.kind === 'ejected' || REPAIRABLE.has(failure.kind))) {
+      const over = await checkEnded().catch(() => false);
+      if (over) {
+        markEnded();
+        return;
+      }
+    }
     if (failure.kind === 'network') {
       setRecovery(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'idle');
       onFailure?.(failure, 'offline');
@@ -79,7 +111,7 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
       return;
     }
     onFailure?.(failure, 'idle');
-  }, [fetchFreshUrl, onFailure, repair]);
+  }, [fetchFreshUrl, onFailure, repair, checkEnded, markEnded]);
 
   const frame = useDailyFrame({
     containerRef,
@@ -90,12 +122,16 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
       setRecovery('idle');
       onJoined?.();
     },
-    onLeft,
+    onLeft: () => {
+      // A host who leaves by the call's own Leave button is asked whether the call is over.
+      if (onEndForEveryone && !endedRef.current) setEndStep('left-host');
+      onLeft?.();
+    },
     onDeviceError: (d) => {
       setDeviceBannerHidden(false);
       onDeviceError?.(d);
     },
-    onFailure: handleFailure,
+    onFailure: (f) => void handleFailure(f),
     onKnock,
   });
 
@@ -121,8 +157,23 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
     return () => window.removeEventListener('online', onOnline);
   }, [recovery, frame.rejoin, frame]);
 
+  const endForEveryone = async () => {
+    if (!onEndForEveryone) return;
+    const from = endStep;
+    setEndStep('ending');
+    setEndError(false);
+    try {
+      await onEndForEveryone();
+      markEnded();
+    } catch {
+      setEndError(true);
+      setEndStep(from === 'left-host' ? 'left-host' : 'confirm');
+    }
+  };
+
   const failure = frame.failure;
-  const showFailure = frame.state === 'error' && failure !== null;
+  const ended = endStep === 'ended';
+  const showFailure = !ended && frame.state === 'error' && failure !== null;
 
   return (
     <div className={cx('ve-call', className)} style={style}>
@@ -144,11 +195,16 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
         <p className="ve-hint ve-hint--warn ve-prejoin-hint" role="status">{labels.prejoinPermissionHint}</p>
       ) : null}
 
-      {frame.state === 'joined' || frame.state === 'ready' ? (
+      {!ended && (frame.state === 'joined' || frame.state === 'ready') ? (
         <div className="ve-toolbar">
           <button type="button" className={cx('ve-btn', classNames.button)} onClick={() => setTroubleOpen((o) => !o)} aria-expanded={troubleOpen}>
             {labels.troubleOpen}
           </button>
+          {onEndForEveryone && frame.state === 'joined' ? (
+            <button type="button" className={cx('ve-btn ve-btn--danger', classNames.button)} onClick={() => { setEndError(false); setEndStep('confirm'); }}>
+              {labels.endForEveryone}
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -166,7 +222,44 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
       <div className="ve-stage">
         <div ref={containerRef} className="ve-frame" />
 
-        {frame.state === 'loading' ? <div className="ve-overlay"><p>{labels.connecting}</p></div> : null}
+        {frame.state === 'loading' && !ended ? <div className="ve-overlay"><p>{labels.connecting}</p></div> : null}
+
+        {endStep === 'confirm' || endStep === 'ending' || endStep === 'left-host' ? (
+          <div className="ve-overlay ve-overlay--end" role="alertdialog" aria-labelledby="ve-end-title">
+            <p id="ve-end-title" className="ve-overlay__title">{endStep === 'left-host' ? labels.leftTitle : labels.endConfirmTitle}</p>
+            <p className="ve-overlay__detail">{endError ? labels.endFailed : labels.endConfirmDetail}</p>
+            <div className="ve-overlay__actions">
+              <button
+                type="button"
+                className={cx('ve-btn ve-btn--danger-solid', classNames.button)}
+                disabled={endStep === 'ending'}
+                onClick={() => void endForEveryone()}
+              >
+                {endStep === 'ending' ? labels.ending : labels.endForEveryone}
+              </button>
+              <button
+                type="button"
+                className={cx('ve-btn', classNames.button)}
+                disabled={endStep === 'ending'}
+                onClick={() => {
+                  const wasLeft = endStep === 'left-host';
+                  setEndStep('none');
+                  if (wasLeft) frame.rejoin();
+                }}
+              >
+                {endStep === 'left-host' ? labels.rejoin : labels.endCancel}
+              </button>
+            </div>
+            {endStep === 'left-host' ? <p className="ve-overlay__fine">{labels.leftKeepOpen}</p> : null}
+          </div>
+        ) : null}
+
+        {ended ? (
+          <div className="ve-overlay" role="status">
+            <p className="ve-overlay__title">{labels.callEnded}</p>
+            <p className="ve-overlay__detail">{labels.callEndedDetail}</p>
+          </div>
+        ) : null}
 
         {showFailure ? (
           <div className={cx('ve-overlay ve-overlay--failure', classNames.recovery)} role="alert">

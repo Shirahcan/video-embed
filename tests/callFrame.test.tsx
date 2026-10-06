@@ -122,4 +122,51 @@ describe('CallFrame', () => {
 
     expect(await screen.findByText('Your computer is blocking the browser from the microphone')).toBeTruthy();
   });
+  it('lets a host end the call for everyone after confirming, then reads ended', async () => {
+    const onEnd = vi.fn().mockResolvedValue(undefined);
+    render(<CallFrame url="https://shirah.daily.co/room?t=HOST" onEndForEveryone={onEnd} />);
+    await waitFor(() => expect(frames.length).toBe(1));
+    act(() => latest().emit('joined-meeting'));
+
+    act(() => screen.getByRole('button', { name: 'End for everyone' }).click());
+    expect(await screen.findByText('End the call for everyone?')).toBeTruthy();
+    expect(onEnd).not.toHaveBeenCalled();
+
+    const confirm = screen.getAllByRole('button', { name: 'End for everyone' }).at(-1)!;
+    act(() => confirm.click());
+    await waitFor(() => expect(onEnd).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('This call has ended')).toBeTruthy();
+
+    // The host's own ejection that follows is not a failure to repair.
+    act(() => latest().emit('error', { errorMsg: 'You were ejected', error: { type: 'ejected', msg: 'ejected' } }));
+    expect(screen.queryByText('You were removed from the call')).toBeNull();
+  });
+
+  it('asks a host who left by the Leave button whether the call is over', async () => {
+    const onEnd = vi.fn().mockResolvedValue(undefined);
+    render(<CallFrame url="https://shirah.daily.co/room?t=HOST" onEndForEveryone={onEnd} />);
+    await waitFor(() => expect(frames.length).toBe(1));
+    act(() => latest().emit('joined-meeting'));
+    act(() => latest().emit('left-meeting'));
+
+    expect(await screen.findByText('You left the call. Is it over?')).toBeTruthy();
+    act(() => screen.getByRole('button', { name: 'Rejoin the call' }).click());
+    await waitFor(() => expect(frames.length).toBe(2));
+    expect(onEnd).not.toHaveBeenCalled();
+  });
+
+  it('never offers ending to a guest, and reads a removal the product calls ended as ended', async () => {
+    const fetchFreshUrl = vi.fn();
+    render(<CallFrame url="https://shirah.daily.co/room?t=GUEST" fetchFreshUrl={fetchFreshUrl} checkEnded={() => Promise.resolve(true)} />);
+    await waitFor(() => expect(frames.length).toBe(1));
+    act(() => latest().emit('joined-meeting'));
+    expect(screen.queryByRole('button', { name: 'End for everyone' })).toBeNull();
+
+    act(() => latest().emit('left-meeting'));
+    expect(screen.queryByText('You left the call. Is it over?')).toBeNull();
+
+    act(() => latest().emit('error', { errorMsg: 'Meeting has ended', error: { type: 'exp-room', msg: 'Meeting has ended' } }));
+    expect(await screen.findByText('This call has ended')).toBeTruthy();
+    expect(fetchFreshUrl).not.toHaveBeenCalled();
+  });
 });

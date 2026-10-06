@@ -54,6 +54,17 @@ export interface VideoLabels {
   knockingOne: (name: string) => string;
   knockingMany: (count: number) => string;
   knockingHint: string;
+  // Ending the call
+  endForEveryone: string;
+  endConfirmTitle: string;
+  endConfirmDetail: string;
+  endCancel: string;
+  ending: string;
+  endFailed: string;
+  leftTitle: string;
+  leftKeepOpen: string;
+  callEnded: string;
+  callEndedDetail: string;
   // In-call device trouble
   deviceTroubleInCall: string;
   dismiss: string;
@@ -205,6 +216,16 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   knockingOne: (name) => `${name || 'Someone'} is asking to join`,
   knockingMany: (count) => `${count} people are asking to join`,
   knockingHint: 'Let them in from the request shown inside the call.',
+  endForEveryone: 'End for everyone',
+  endConfirmTitle: 'End the call for everyone?',
+  endConfirmDetail: 'Everyone is removed now and the link stops working. This cannot be undone.',
+  endCancel: 'Keep the call going',
+  ending: 'Ending the call...',
+  endFailed: 'The call could not be ended just now. Try again.',
+  leftTitle: 'You left the call. Is it over?',
+  leftKeepOpen: 'Leave it open and the others can carry on; it ends by itself once everyone has gone.',
+  callEnded: 'This call has ended',
+  callEndedDetail: 'The host ended the call for everyone. You can close this page.',
   deviceTroubleInCall: 'Your camera or microphone stopped working.',
   dismiss: 'Dismiss',
 };
