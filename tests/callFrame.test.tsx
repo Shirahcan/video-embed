@@ -68,6 +68,23 @@ describe('CallFrame', () => {
     expect(onFailure).toHaveBeenCalledWith(expect.objectContaining({ kind: 'room-expired' }), 'repaired');
   });
 
+  it('reads a plain-object join() rejection and reports a failure once', async () => {
+    const onFailure = vi.fn();
+    const proto = FakeFrame.prototype as unknown as { join: (o: { url: string }) => Promise<void> };
+    const original = proto.join;
+    proto.join = async function (this: FakeFrame) {
+      this.emit('error', { errorMsg: 'Meeting has ended', error: { type: 'exp-room', msg: 'Meeting has ended' } });
+      throw { errorMsg: 'Meeting has ended', error: { type: 'exp-room', msg: 'Meeting has ended' } };
+    };
+    try {
+      render(<CallFrame url="https://shirah.daily.co/room?t=A" onFailure={onFailure} />);
+      await waitFor(() => expect(onFailure).toHaveBeenCalledTimes(1));
+      expect(onFailure.mock.calls[0]?.[0]).toEqual({ kind: 'room-expired', message: 'Meeting has ended' });
+    } finally {
+      proto.join = original;
+    }
+  });
+
   it('never auto-rejoins someone a host removed', async () => {
     const fetchFreshUrl = vi.fn();
     render(<CallFrame url="https://shirah.daily.co/room?t=A" fetchFreshUrl={fetchFreshUrl} />);

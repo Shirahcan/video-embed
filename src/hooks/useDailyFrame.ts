@@ -102,6 +102,8 @@ export function useDailyFrame({
 
     const failsafe = setTimeout(() => setState((s) => (s === 'loading' ? 'ready' : s)), READY_FAILSAFE_MS);
 
+    // Set by the `error` event, so the matching join() rejection is not reported twice.
+    let reported = false;
     const boot = async () => {
       try {
         const DailyIframe = (await import('@daily-co/daily-js')).default;
@@ -181,6 +183,7 @@ export function useDailyFrame({
             handlersRef.current.onDeviceError?.(diagnosis);
           })
           .on('error', (event) => {
+            reported = true;
             const f = classifyCallError(event);
             setFailure(f);
             setState('error');
@@ -191,8 +194,10 @@ export function useDailyFrame({
         if (!joinUrl) return;
         await frame.join({ url: joinUrl });
       } catch (err) {
-        if (cancelled) return;
-        const f = classifyCallError({ errorMsg: err instanceof Error ? err.message : String(err) });
+        // join() rejects for the same failure the `error` event already reported: once only.
+        if (cancelled || reported) return;
+        // daily-js rejects with a plain object ({ errorMsg, error }) as often as an Error.
+        const f = classifyCallError(err instanceof Error ? { errorMsg: err.message } : err);
         setFailure(f);
         setState('error');
         handlersRef.current.onFailure?.(f);
