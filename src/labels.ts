@@ -66,6 +66,13 @@ export interface VideoLabels {
   leftKeepOpen: string;
   callEnded: string;
   callEndedDetail: string;
+  // A call on another platform (ExternalCall)
+  externalTitle: (platform: string) => string;
+  externalDetail: string;
+  externalOpen: (platform: string) => string;
+  externalPassword: string;
+  externalMissing: string;
+  externalMissingDetail: string;
   callEndedByYouDetail: string;
   // Call transcript
   transcriptTitle: (state: TranscriptState) => string;
@@ -232,6 +239,12 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   leftKeepOpen: 'Leave it open and the others can carry on; it ends by itself once everyone has gone.',
   callEnded: 'This call has ended',
   callEndedDetail: 'The host ended the call for everyone. You can close this page.',
+  externalTitle: (platform) => `This call runs on ${platform}`,
+  externalDetail: 'It opens in a new tab. You can keep this page open.',
+  externalOpen: (platform) => `Open ${platform}`,
+  externalPassword: 'Password',
+  externalMissing: 'No call link yet',
+  externalMissingDetail: 'This meeting does not have a call link attached. Ask the host to add one.',
   callEndedByYouDetail: 'You ended the call for everyone.',
   transcriptTitle: (state) => {
     switch (state) {

@@ -17,6 +17,8 @@ export type { CameraStatus, DeviceOption, MediaCheck, MicStatus, SpeakerStatus }
 export { CallFrame } from './components/CallFrame';
 export type { CallFrameProps, RecoveryStatus } from './components/CallFrame';
 export { DeviceCheck } from './components/DeviceCheck';
+export { ExternalCall, externalCallPlatform } from './components/ExternalCall';
+export type { ExternalCallProps } from './components/ExternalCall';
 export type { DeviceCheckProps } from './components/DeviceCheck';
 export { KnockBar } from './components/KnockBar';
 export { ProblemCard } from './components/ProblemCard';
