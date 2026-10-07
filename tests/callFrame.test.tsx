@@ -145,6 +145,29 @@ describe('CallFrame', () => {
     expect(screen.queryByText('You were removed from the call')).toBeNull();
   });
 
+  it('reads the host\'s own eject, arriving before the End request answers, as the end landing', async () => {
+    let finish: () => void = () => {};
+    const onEnd = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const onEnded = vi.fn();
+    render(<CallFrame url="https://shirah.daily.co/room?t=HOST" onEndForEveryone={onEnd} onEnded={onEnded} />);
+    await waitFor(() => expect(frames.length).toBe(1));
+    act(() => latest().emit('joined-meeting'));
+
+    act(() => screen.getByRole('button', { name: 'End for everyone' }).click());
+    act(() => screen.getAllByRole('button', { name: 'End for everyone' }).at(-1)!.click());
+    await waitFor(() => expect(onEnd).toHaveBeenCalledTimes(1));
+
+    // The service ejects everyone first: Daily reports the eject and the leave.
+    act(() => latest().emit('error', { errorMsg: 'You were ejected', error: { type: 'ejected', msg: 'ejected' } }));
+    act(() => latest().emit('left-meeting'));
+    expect(screen.queryByText('You were removed from the call')).toBeNull();
+    expect(screen.queryByText('You left the call. Is it over?')).toBeNull();
+
+    await act(async () => { finish(); });
+    expect(await screen.findByText('You ended the call for everyone.')).toBeTruthy();
+    expect(onEnded).toHaveBeenCalledWith('by-me');
+  });
+
   it('asks a host who left by the Leave button whether the call is over', async () => {
     const onEnd = vi.fn().mockResolvedValue(undefined);
     render(<CallFrame url="https://shirah.daily.co/room?t=HOST" onEndForEveryone={onEnd} />);

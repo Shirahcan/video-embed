@@ -85,6 +85,10 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
   const [endStep, setEndStep] = useState<EndStep>('none');
   const [endError, setEndError] = useState(false);
   const endedRef = useRef(false);
+  // The host pressed End and the request is in flight. The service ejects everyone BEFORE the
+  // request answers, so the host's own leave/eject events arrive first: they are the end
+  // landing, never "you left" or "you were removed" (found 2026-10-07 on the emailed link).
+  const endingRef = useRef(false);
   const [endedByMe, setEndedByMe] = useState(false);
   const onEndedRef = useRef(onEnded);
   useEffect(() => {
@@ -125,7 +129,7 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
 
   const handleFailure = useCallback(async (failure: CallFailure) => {
     // Over for everyone: nothing to repair and nobody removed this person on purpose.
-    if (endedRef.current) return;
+    if (endedRef.current || endingRef.current) return;
     if (checkEnded && (failure.kind === 'ejected' || REPAIRABLE.has(failure.kind))) {
       const over = await checkEnded().catch(() => false);
       if (over) {
@@ -158,7 +162,7 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
     },
     onLeft: () => {
       // A host who leaves by the call's own Leave button is asked whether the call is over.
-      if (onEndForEveryone && !endedRef.current) setEndStep('left-host');
+      if (onEndForEveryone && !endedRef.current && !endingRef.current) setEndStep('left-host');
       onLeft?.();
     },
     onDeviceError: (d) => {
@@ -204,6 +208,7 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
   const endForEveryone = async () => {
     if (!onEndForEveryone) return;
     const from = endStep;
+    endingRef.current = true;
     setEndStep('ending');
     setEndError(false);
     try {
@@ -212,12 +217,14 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
     } catch {
       setEndError(true);
       setEndStep(from === 'left-host' ? 'left-host' : 'confirm');
+    } finally {
+      endingRef.current = false;
     }
   };
 
   const failure = frame.failure;
   const ended = endStep === 'ended';
-  const showFailure = !ended && frame.state === 'error' && failure !== null;
+  const showFailure = !ended && endStep !== 'ending' && frame.state === 'error' && failure !== null;
 
   return (
     <div className={cx('ve-call', className)} style={style}>
