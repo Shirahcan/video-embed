@@ -10,6 +10,8 @@ export { VideoUiProvider, useVideoUi, videoThemeStyle } from './theme';
 export type { VideoClassNames, VideoTheme, VideoUiProviderProps } from './theme';
 export { useDailyFrame } from './hooks/useDailyFrame';
 export type { FrameState, UseDailyFrameOptions, UseDailyFrameResult, WaitingPerson } from './hooks/useDailyFrame';
+export { useCallPresence } from './hooks/useCallPresence';
+export type { PresenceKind } from './hooks/useCallPresence';
 export { useMediaCheck } from './hooks/useMediaCheck';
 export type { CameraStatus, DeviceOption, MediaCheck, MicStatus, SpeakerStatus } from './hooks/useMediaCheck';
 export { CallFrame } from './components/CallFrame';

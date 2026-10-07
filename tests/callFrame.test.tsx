@@ -168,6 +168,25 @@ describe('CallFrame', () => {
     expect(onEnded).toHaveBeenCalledWith('by-me');
   });
 
+  it('sends presence itself: join, a heartbeat each minute, and leave', async () => {
+    vi.useFakeTimers();
+    const presence = vi.fn().mockResolvedValue(undefined);
+    render(<CallFrame url="https://shirah.daily.co/room?t=X" presence={presence} />);
+    await vi.waitFor(() => expect(frames.length).toBe(1));
+
+    act(() => latest().emit('joined-meeting'));
+    expect(presence).toHaveBeenLastCalledWith('join');
+
+    act(() => { vi.advanceTimersByTime(60_000); });
+    expect(presence).toHaveBeenLastCalledWith('heartbeat');
+
+    act(() => latest().emit('left-meeting'));
+    expect(presence).toHaveBeenLastCalledWith('leave');
+    act(() => { vi.advanceTimersByTime(120_000); });
+    expect(presence).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
+
   it('asks a host who left by the Leave button whether the call is over', async () => {
     const onEnd = vi.fn().mockResolvedValue(undefined);
     render(<CallFrame url="https://shirah.daily.co/room?t=HOST" onEndForEveryone={onEnd} />);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { REPAIRABLE, type CallFailure, type CallFailureKind } from '../callErrors';
 import type { MediaDiagnosis } from '../diagnose';
+import { useCallPresence, type PresenceKind } from '../hooks/useCallPresence';
 import { useDailyFrame, type WaitingPerson } from '../hooks/useDailyFrame';
 import { cx, useVideoUi } from '../theme';
 import { KnockBar } from './KnockBar';
@@ -42,6 +43,12 @@ export interface CallFrameProps {
    * anyone else sees the notice briefly first).
    */
   onEnded?: (how: 'by-me' | 'ended') => void;
+  /**
+   * Presence (join / heartbeat each minute / leave), sent by the frame itself. The product passes
+   * one function that posts to its video-client kit presence route; the backend relays it to
+   * video-service, whose call verdict reads it. Absent = no presence is sent.
+   */
+  presence?: (kind: PresenceKind) => Promise<void>;
   /** Hide the frame (another tab holds the call). */
   enabled?: boolean;
   className?: string;
@@ -71,7 +78,8 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, enabled = true, className, style }: CallFrameProps) {
+  const { joinedNow, leftNow } = useCallPresence(presence);
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
   const [joinUrl, setJoinUrl] = useState(url);
@@ -156,11 +164,13 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
     url: joinUrl,
     enabled,
     onJoined: () => {
+      joinedNow();
       autoTried.current = false;
       setRecovery('idle');
       onJoined?.();
     },
     onLeft: () => {
+      leftNow();
       // A host who leaves by the call's own Leave button is asked whether the call is over.
       if (onEndForEveryone && !endedRef.current && !endingRef.current) setEndStep('left-host');
       onLeft?.();
