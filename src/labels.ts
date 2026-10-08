@@ -78,6 +78,13 @@ export interface VideoLabels {
   transcriptTitle: (state: TranscriptState) => string;
   transcriptDetail: (state: TranscriptState, ctx: { expectedByLabel: string | null; readyWithinMinutes: number }) => string;
   transcriptAdd: string;
+  transcriptView: string;
+  transcriptDownload: string;
+  transcriptReplace: string;
+  /** The kebab menu's accessible name. */
+  transcriptActions: string;
+  /** A menu item while its action runs. */
+  transcriptWorking: string;
   // In-call device trouble
   deviceTroubleInCall: string;
   dismiss: string;
@@ -265,6 +272,7 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
         ? `The call has ended and the transcript is being prepared. Expect it ${expectedByLabel}.`
         : `The call has ended and the transcript is being prepared. It usually arrives within ${readyWithinMinutes} minutes.`;
       case 'ready': return 'The transcript is ready and being collected.';
+      case 'held': return 'The full record of the call.';
       case 'overdue': return `The call ended more than ${readyWithinMinutes} minutes ago and no transcript arrived. If you have a record of the call, add it.`;
       case 'not_transcribed': return 'Transcription was off for this call, so there is no transcript. If you have a record of the call, add it.';
       case 'no_call': return 'Nobody joined this call on the platform. If it happened somewhere else, add the record.';
@@ -272,6 +280,11 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
     }
   },
   transcriptAdd: 'Add transcript',
+  transcriptView: 'View',
+  transcriptDownload: 'Download',
+  transcriptReplace: 'Replace',
+  transcriptActions: 'Transcript actions',
+  transcriptWorking: 'Working...',
   deviceTroubleInCall: 'Your camera or microphone stopped working.',
   dismiss: 'Dismiss',
 };

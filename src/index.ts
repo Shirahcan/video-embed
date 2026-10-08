@@ -24,4 +24,6 @@ export { KnockBar } from './components/KnockBar';
 export { ProblemCard } from './components/ProblemCard';
 export { Troubleshooter } from './components/Troubleshooter';
 export { TranscriptStatus } from './components/TranscriptStatus';
+export { ActionMenu } from './components/ActionMenu';
+export type { ActionMenuItem } from './components/ActionMenu';
 export type { TranscriptState, TranscriptStatusProps } from './components/TranscriptStatus';

@@ -105,4 +105,15 @@
 .ve-transcript__text { min-width: 0; flex: 1 1 260px; }
 .ve-transcript__title { margin: 0; font-size: 14px; font-weight: 600; color: var(--ve-ink); }
 .ve-transcript__detail { margin: 2px 0 0; font-size: 12px; color: var(--ve-ink-muted); }
-.ve-transcript__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ve-transcript__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* A kebab menu: two or more actions on one thing */
+.ve-menu { position: relative; display: inline-flex; }
+.ve-menu__trigger { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--ve-border); border-radius: 999px; background: var(--ve-surface); color: var(--ve-ink-muted); cursor: pointer; outline: none; }
+.ve-menu__trigger:hover { background: var(--ve-surface-muted); color: var(--ve-ink); }
+.ve-menu__trigger:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ve-accent) 35%, transparent); }
+.ve-menu__trigger:disabled { opacity: 0.6; cursor: default; }
+.ve-menu__list { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; display: grid; min-width: 11rem; padding: 6px; border: 1px solid var(--ve-border); border-radius: calc(var(--ve-radius) * 0.5); background: var(--ve-surface); box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12); }
+.ve-menu__item { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--ve-ink); font: inherit; font-size: 13px; text-align: left; white-space: nowrap; cursor: pointer; outline: none; }
+.ve-menu__item:hover, .ve-menu__item:focus-visible { background: var(--ve-surface-muted); }
+.ve-menu__item:disabled { color: var(--ve-ink-muted); cursor: default; background: transparent; }

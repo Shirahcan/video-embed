@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cx, useVideoUi } from '../theme';
+import { ActionMenu, type ActionMenuItem } from './ActionMenu';
 
 /** video-service's answer (GET /v1/rooms/{name}/transcript-status), plus the product's own. */
 export type TranscriptState =
@@ -10,6 +11,8 @@ export type TranscriptState =
   | 'preparing'
   | 'ready'
   | 'overdue'
+  /** The product holds the transcript: it can be viewed, downloaded or replaced. */
+  | 'held'
   /** The product could not find out (the service did not answer). */
   | 'unknown';
 
@@ -29,13 +32,26 @@ export interface TranscriptStatusProps {
   detail?: string | null;
   /** Offered where a record can sensibly be added by hand; absent hides the button. */
   onAdd?: () => void;
-  /** Extra actions (view, download) once the product holds the transcript. */
+  /** Open the transcript. With download and replace, these sit behind ONE kebab menu. */
+  onView?: () => void;
+  onDownload?: () => void;
+  /**
+   * Put a better record in place of the one held (a cleaner export, the right call's file). Only
+   * offered under `held`: before there is a transcript, adding one is `onAdd`.
+   */
+  onReplace?: () => void;
+  /** The menu action that is running (the item reads "Working..." and cannot be chosen twice). */
+  working?: 'view' | 'download' | 'replace' | null;
+  /**
+   * @deprecated Loose buttons beside the strip. Use onView / onDownload / onReplace, which sit
+   * behind one menu so the row never grows a line of buttons.
+   */
   actions?: ReactNode;
   className?: string;
 }
 
 /** States where nothing is wrong yet: drawn quiet, never as a warning. */
-const CALM: ReadonlySet<TranscriptState> = new Set(['not_started', 'in_call', 'preparing', 'ready']);
+const CALM: ReadonlySet<TranscriptState> = new Set(['not_started', 'in_call', 'preparing', 'ready', 'held']);
 /** States where a record added by hand is the sensible way forward. */
 const ADDABLE: ReadonlySet<TranscriptState> = new Set(['not_transcribed', 'no_call', 'overdue', 'unknown', 'not_started']);
 
@@ -45,12 +61,21 @@ const ADDABLE: ReadonlySet<TranscriptState> = new Set(['not_transcribed', 'no_ca
  * call still on, or one Daily is still writing up, is never called "ended without a
  * transcript". Only an absence that is really a problem is drawn as one, and "Add transcript"
  * is offered only where a record by hand makes sense (never while one is on its way, which
- * would leave two records of one call).
+ * would leave two records of one call). Once the product holds it (`held`), view, download and
+ * replace sit behind one kebab menu (owner 2026-10-08); a single action stays a plain button.
  */
-export function TranscriptStatus({ state, expectedByLabel, readyWithinMinutes = 60, reason, detail: override, onAdd, actions, className }: TranscriptStatusProps) {
+export function TranscriptStatus({ state, expectedByLabel, readyWithinMinutes = 60, reason, detail: override, onAdd, onView, onDownload, onReplace, working = null, actions, className }: TranscriptStatusProps) {
   const { labels, classNames } = useVideoUi();
   const calm = CALM.has(state);
   const detail = override?.trim() ? override : labels.transcriptDetail(state, { expectedByLabel: expectedByLabel ?? null, readyWithinMinutes });
+  const item = (key: 'view' | 'download' | 'replace', label: string, run?: () => void): ActionMenuItem[] =>
+    run ? [{ label: working === key ? labels.transcriptWorking : label, onSelect: run, disabled: working !== null }] : [];
+  const menu = [
+    ...item('view', labels.transcriptView, onView),
+    ...item('download', labels.transcriptDownload, onDownload),
+    ...(state === 'held' ? item('replace', labels.transcriptReplace, onReplace) : []),
+  ];
+  const only = menu.length === 1 ? menu[0] : undefined;
 
   return (
     <div className={cx('ve-transcript', calm ? 've-transcript--calm' : 've-transcript--warn', classNames.transcript, className)} role="status">
@@ -63,6 +88,12 @@ export function TranscriptStatus({ state, expectedByLabel, readyWithinMinutes = 
       </div>
       <div className="ve-transcript__actions">
         {actions}
+        {only ? (
+          <button type="button" className={cx('ve-btn', classNames.button)} disabled={only.disabled} onClick={only.onSelect}>
+            {only.label}
+          </button>
+        ) : null}
+        {menu.length > 1 ? <ActionMenu label={labels.transcriptActions} items={menu} /> : null}
         {onAdd && ADDABLE.has(state) ? (
           <button type="button" className={cx('ve-btn', classNames.button)} onClick={onAdd}>
             {labels.transcriptAdd}
