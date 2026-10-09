@@ -351,7 +351,7 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   },
   issuesHeading: 'Joining problems',
   issuesIntro: 'What stopped someone getting into this call, and what happened next.',
-  issueWhat: (kind) => ISSUE_WHAT[kind] ?? ISSUE_WHAT.unknown,
+  issueWhat: (kind) => ISSUE_WHAT[kind] ?? 'Something stopped the call',
   issueOutcome: (outcome) => ISSUE_OUTCOME[outcome] ?? outcome,
   issueSomeone: 'Someone',
   deviceTroubleInCall: 'Your camera or microphone stopped working.',
