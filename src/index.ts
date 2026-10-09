@@ -31,3 +31,5 @@ export { TranscriptPanel, useCallTranscripts } from './components/TranscriptPane
 export type { CallTranscriptItem, CallTranscriptsAdapter, CallTranscriptsState, TranscriptPanelProps } from './components/TranscriptPanel';
 export { JoinIssuesPanel } from './components/JoinIssuesPanel';
 export type { JoinIssueItem, JoinIssuesAdapter, JoinIssuesPanelProps } from './components/JoinIssuesPanel';
+export { TranscriptReader } from './components/TranscriptReader';
+export type { TranscriptReaderProps } from './components/TranscriptReader';

@@ -32,6 +32,14 @@ export interface TranscriptStatusProps {
   detail?: string | null;
   /** Offered where a record can sensibly be added by hand; absent hides the button. */
   onAdd?: () => void;
+  /**
+   * The three readings of a held transcript (owner 2026-10-09), each opening it in the
+   * TranscriptReader: the product's recap of the call, its tidied text, and the words as spoken.
+   * Offered only under `held`, and only those the product has.
+   */
+  onReadRecap?: () => void;
+  onReadTidied?: () => void;
+  onReadAsSpoken?: () => void;
   /** Open the transcript. With download and replace, these sit behind ONE kebab menu. */
   onView?: () => void;
   onDownload?: () => void;
@@ -64,13 +72,18 @@ const ADDABLE: ReadonlySet<TranscriptState> = new Set(['not_transcribed', 'no_ca
  * would leave two records of one call). Once the product holds it (`held`), view, download and
  * replace sit behind one kebab menu (owner 2026-10-08); a single action stays a plain button.
  */
-export function TranscriptStatus({ state, expectedByLabel, readyWithinMinutes = 60, reason, detail: override, onAdd, onView, onDownload, onReplace, working = null, actions, className }: TranscriptStatusProps) {
+export function TranscriptStatus({ state, expectedByLabel, readyWithinMinutes = 60, reason, detail: override, onAdd, onReadRecap, onReadTidied, onReadAsSpoken, onView, onDownload, onReplace, working = null, actions, className }: TranscriptStatusProps) {
   const { labels, classNames } = useVideoUi();
   const calm = CALM.has(state);
   const detail = override?.trim() ? override : labels.transcriptDetail(state, { expectedByLabel: expectedByLabel ?? null, readyWithinMinutes });
   const item = (key: 'view' | 'download' | 'replace', label: string, run?: () => void): ActionMenuItem[] =>
     run ? [{ label: working === key ? labels.transcriptWorking : label, onSelect: run, disabled: working !== null }] : [];
+  const read = (label: string, run?: () => void): ActionMenuItem[] =>
+    state === 'held' && run ? [{ label, onSelect: run, disabled: working !== null }] : [];
   const menu = [
+    ...read(labels.transcriptReadRecap, onReadRecap),
+    ...read(labels.transcriptReadTidied, onReadTidied),
+    ...read(labels.transcriptReadAsSpoken, onReadAsSpoken),
     ...item('view', labels.transcriptView, onView),
     ...item('download', labels.transcriptDownload, onDownload),
     ...(state === 'held' ? item('replace', labels.transcriptReplace, onReplace) : []),

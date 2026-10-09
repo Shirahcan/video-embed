@@ -85,6 +85,13 @@ export interface VideoLabels {
   transcriptActions: string;
   /** A menu item while its action runs. */
   transcriptWorking: string;
+  /** The three readings of a held transcript, from the strip's kebab (TranscriptReader). */
+  transcriptReadRecap: string;
+  transcriptReadTidied: string;
+  transcriptReadAsSpoken: string;
+  readerClose: string;
+  readerCopy: string;
+  readerCopied: string;
   // A call's kept transcripts (TranscriptPanel)
   transcriptsHeading: string;
   transcriptPreparing: string;
@@ -334,6 +341,12 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   transcriptReplace: 'Replace',
   transcriptActions: 'Transcript actions',
   transcriptWorking: 'Working...',
+  transcriptReadRecap: 'Read the recap',
+  transcriptReadTidied: 'Read the tidied transcript',
+  transcriptReadAsSpoken: 'Read it as spoken',
+  readerClose: 'Close',
+  readerCopy: 'Copy text',
+  readerCopied: 'Copied',
   transcriptsHeading: 'Call transcripts',
   transcriptPreparing: 'The transcript is being prepared. It usually lands a few minutes after the call ends.',
   transcriptFailed: "This call's transcript could not be made. The call itself was not affected; if you have a record of it, add it.",
