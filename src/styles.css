@@ -117,3 +117,23 @@
 .ve-menu__item { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--ve-ink); font: inherit; font-size: 13px; text-align: left; white-space: nowrap; cursor: pointer; outline: none; }
 .ve-menu__item:hover, .ve-menu__item:focus-visible { background: var(--ve-surface-muted); }
 .ve-menu__item:disabled { color: var(--ve-ink-muted); cursor: default; background: transparent; }
+
+/* A call's kept transcripts and joining problems (TranscriptPanel, JoinIssuesPanel). */
+.ve-tx, .ve-issues { display: grid; gap: 12px; padding: 20px; border: 1px solid var(--ve-border); border-radius: var(--ve-radius); background: var(--ve-surface); }
+.ve-tx__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.ve-tx__heading { margin: 0; font-size: 15px; font-weight: 700; color: var(--ve-ink); }
+.ve-tx__meta { margin: 0; font-size: 12px; color: var(--ve-ink-muted); }
+.ve-tx__card { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--ve-border); border-radius: calc(var(--ve-radius) * 0.5); background: var(--ve-surface); }
+.ve-tx__note { margin: 0; padding: 12px 14px; border-radius: calc(var(--ve-radius) * 0.5); background: var(--ve-surface-muted); font-size: 13px; color: var(--ve-ink-muted); }
+.ve-tx__note--warn { background: color-mix(in srgb, var(--ve-warn) 8%, var(--ve-surface)); color: var(--ve-ink); }
+.ve-tx__toggle { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; font-weight: 600; color: var(--ve-ink-muted); cursor: pointer; outline: none; }
+.ve-tx__toggle:hover { color: var(--ve-ink); }
+.ve-tx__seg { display: inline-flex; border: 1px solid var(--ve-border); border-radius: var(--ve-radius-pill); overflow: hidden; }
+.ve-tx__seg button { border: 0; background: none; padding: 4px 12px; font: inherit; font-size: 12px; color: var(--ve-ink-muted); cursor: pointer; white-space: nowrap; outline: none; }
+.ve-tx__seg button[aria-pressed='true'] { background: var(--ve-accent); color: var(--ve-accent-ink); }
+.ve-tx__text { margin: 0; max-height: 320px; overflow-y: auto; white-space: pre-wrap; padding: 10px 12px; border: 1px solid var(--ve-border); border-radius: calc(var(--ve-radius) * 0.4); background: var(--ve-surface-muted); font: inherit; font-size: 12px; line-height: 1.6; color: var(--ve-ink); }
+.ve-issues__list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.ve-issues__item { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--ve-ink); }
+.ve-issues__dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 999px; flex-shrink: 0; background: var(--ve-warn); }
+.ve-issues__item--ok .ve-issues__dot { background: var(--ve-ok); }
+.ve-issues__when { display: block; }

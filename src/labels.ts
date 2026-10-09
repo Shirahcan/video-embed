@@ -85,10 +85,59 @@ export interface VideoLabels {
   transcriptActions: string;
   /** A menu item while its action runs. */
   transcriptWorking: string;
+  // A call's kept transcripts (TranscriptPanel)
+  transcriptsHeading: string;
+  transcriptPreparing: string;
+  transcriptFailed: string;
+  transcriptShow: string;
+  transcriptHide: string;
+  /** The toggle between the product's tidied text and the words as spoken. */
+  transcriptTidied: string;
+  transcriptAsSpoken: string;
+  transcriptCopy: string;
+  transcriptDownloadText: string;
+  transcriptCopied: string;
+  /** A transcript a person supplied: who, when the product knows. */
+  transcriptAddedBy: (who: string | null) => string;
+  transcriptLength: (seconds: number) => string;
+  // Who could not get into the call (JoinIssuesPanel)
+  issuesHeading: string;
+  issuesIntro: string;
+  issueWhat: (kind: string) => string;
+  issueOutcome: (outcome: string) => string;
+  issueSomeone: string;
   // In-call device trouble
   deviceTroubleInCall: string;
   dismiss: string;
 }
+
+const ISSUE_WHAT: Record<string, string> = {
+  'room-missing': 'The room was missing',
+  'room-expired': 'The room had closed',
+  'token-expired': 'Their join link had expired',
+  'not-allowed': 'The room refused them',
+  'not-open-yet': 'The room was not open yet',
+  ejected: 'They were removed from the call',
+  'meeting-full': 'The call was full',
+  'unsupported-browser': 'Their browser was too old',
+  network: 'Their connection dropped',
+  'blocked-browser': 'Their browser blocked the device',
+  'blocked-system': 'Their computer blocked the browser from the device',
+  'not-found': 'No device was found',
+  'in-use': 'Another app was using the device',
+  constraints: 'The chosen device could not start',
+  silent: 'The microphone heard nothing',
+  insecure: 'The page could not use devices',
+  unsupported: 'The browser could not use devices',
+  unknown: 'Something stopped the call',
+};
+
+const ISSUE_OUTCOME: Record<string, string> = {
+  repaired: 'fixed automatically',
+  failed: 'could not be fixed',
+  offline: 'waited for their connection',
+  idle: 'shown to them',
+};
 
 const DEVICE = { microphone: 'microphone', camera: 'camera' } as const;
 
@@ -285,6 +334,26 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   transcriptReplace: 'Replace',
   transcriptActions: 'Transcript actions',
   transcriptWorking: 'Working...',
+  transcriptsHeading: 'Call transcripts',
+  transcriptPreparing: 'The transcript is being prepared. It usually lands a few minutes after the call ends.',
+  transcriptFailed: "This call's transcript could not be made. The call itself was not affected; if you have a record of it, add it.",
+  transcriptShow: 'Show full transcript',
+  transcriptHide: 'Hide full transcript',
+  transcriptTidied: 'Tidied',
+  transcriptAsSpoken: 'As spoken',
+  transcriptCopy: 'Copy transcript',
+  transcriptDownloadText: 'Download as text',
+  transcriptCopied: 'Transcript copied',
+  transcriptAddedBy: (who) => (who ? `Added by ${who}` : 'Added by hand'),
+  transcriptLength: (seconds) => {
+    const minutes = Math.round(seconds / 60);
+    return minutes < 1 ? 'under a minute' : `${minutes} min`;
+  },
+  issuesHeading: 'Joining problems',
+  issuesIntro: 'What stopped someone getting into this call, and what happened next.',
+  issueWhat: (kind) => ISSUE_WHAT[kind] ?? ISSUE_WHAT.unknown,
+  issueOutcome: (outcome) => ISSUE_OUTCOME[outcome] ?? outcome,
+  issueSomeone: 'Someone',
   deviceTroubleInCall: 'Your camera or microphone stopped working.',
   dismiss: 'Dismiss',
 };

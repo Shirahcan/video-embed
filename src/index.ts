@@ -27,3 +27,7 @@ export { TranscriptStatus } from './components/TranscriptStatus';
 export { ActionMenu } from './components/ActionMenu';
 export type { ActionMenuItem } from './components/ActionMenu';
 export type { TranscriptState, TranscriptStatusProps } from './components/TranscriptStatus';
+export { TranscriptPanel, useCallTranscripts } from './components/TranscriptPanel';
+export type { CallTranscriptItem, CallTranscriptsAdapter, CallTranscriptsState, TranscriptPanelProps } from './components/TranscriptPanel';
+export { JoinIssuesPanel } from './components/JoinIssuesPanel';
+export type { JoinIssueItem, JoinIssuesAdapter, JoinIssuesPanelProps } from './components/JoinIssuesPanel';
