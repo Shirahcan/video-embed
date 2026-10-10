@@ -1,5 +1,9 @@
 /* @shirahcan/video-embed: every colour, radius and font is a variable a product overrides. */
 :where(.ve-root) { display: contents; }
+/* The wrapper has no box, so a parent's sibling spacing (Tailwind v3 `space-y-*`, which margins the
+   LATER sibling) lands on nothing and the component touches whatever sits above it. Its first child
+   takes the wrapper's margin instead; zero specificity, so a product's own class still wins. */
+:where(.ve-root > :first-child) { margin-block-start: inherit; }
 
 :where(.ve-root, .ve-check, .ve-call) {
   --ve-accent: #4361ee;
@@ -34,6 +38,7 @@
 .ve-pill--ok { background: color-mix(in srgb, var(--ve-ok) 12%, white); color: var(--ve-ok); }
 .ve-pill--warn { background: color-mix(in srgb, var(--ve-warn) 12%, white); color: var(--ve-warn); }
 
+.ve-notice { margin: 0; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--ve-accent) 18%, white); border-radius: 12px; background: color-mix(in srgb, var(--ve-accent) 6%, white); color: color-mix(in srgb, var(--ve-accent) 75%, black); font-size: 12px; line-height: 1.5; }
 .ve-hint { margin: 0; font-size: 12px; color: var(--ve-ink-muted); }
 .ve-hint--ok { color: var(--ve-ok); }
 .ve-hint--warn { color: var(--ve-warn); }

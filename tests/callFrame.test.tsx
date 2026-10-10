@@ -49,12 +49,15 @@ vi.mock('@daily-co/daily-js', () => ({
 }));
 
 import { CallFrame } from '../src/components/CallFrame';
+import { TranscriptionNotice } from '../src/components/TranscriptionNotice';
+import { VideoUiProvider } from '../src/theme';
 
 const latest = () => frames[frames.length - 1]!;
 
 describe('CallFrame', () => {
   beforeEach(() => {
     frames.length = 0;
+    window.localStorage.clear();
   });
 
   it('joins a passless room under the name a guest typed, so the host sees it on the knock', async () => {
@@ -223,5 +226,50 @@ describe('CallFrame', () => {
     expect(await screen.findByText('This call has ended')).toBeTruthy();
     expect(fetchFreshUrl).not.toHaveBeenCalled();
     expect(onEnded).toHaveBeenCalledWith('ended');
+  });
+
+  it('a named guest sends no presence: they are nobody the product knows', async () => {
+    const presence = vi.fn().mockResolvedValue(undefined);
+    render(<CallFrame url="https://shirah.daily.co/room" userName="Ana Ruiz" presence={presence} />);
+    await waitFor(() => expect(frames.length).toBe(1));
+
+    act(() => latest().emit('joined-meeting'));
+    act(() => latest().emit('left-meeting'));
+    expect(presence).not.toHaveBeenCalled();
+  });
+
+  it('a second tab on the same call stands down, and can take the call over', async () => {
+    render(<CallFrame url="https://shirah.daily.co/room?t=ONE" />);
+    await waitFor(() => expect(frames.length).toBe(1));
+
+    // Same room, another pass: the same call from the same machine.
+    render(<CallFrame url="https://shirah.daily.co/room?t=TWO" />);
+    expect(await screen.findByText('You are already in this call in another tab')).toBeTruthy();
+    expect(frames.length).toBe(1);
+
+    act(() => screen.getByText('Move the call here').click());
+    await waitFor(() => expect(frames.length).toBe(2));
+  });
+
+  it('a reload is not "another tab": the page gives its lock back as it goes', async () => {
+    const first = render(<CallFrame url="https://shirah.daily.co/room?t=ONE" />);
+    await waitFor(() => expect(frames.length).toBe(1));
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    first.unmount();
+
+    render(<CallFrame url="https://shirah.daily.co/room?t=ONE" />);
+    await waitFor(() => expect(frames.length).toBe(2));
+    expect(screen.queryByText('You are already in this call in another tab')).toBeNull();
+  });
+
+  it('words the transcription notice for the host and for everyone else', () => {
+    render(
+      <VideoUiProvider>
+        <TranscriptionNotice audience="host" />
+        <TranscriptionNotice audience="attendee" />
+      </VideoUiProvider>,
+    );
+    expect(screen.getByText(/so you keep an accurate record/)).toBeTruthy();
+    expect(screen.getByText(/so the host keeps an accurate record/)).toBeTruthy();
   });
 });

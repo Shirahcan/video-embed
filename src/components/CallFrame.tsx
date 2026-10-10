@@ -3,6 +3,7 @@ import { REPAIRABLE, type CallFailure, type CallFailureKind } from '../callError
 import type { MediaDiagnosis } from '../diagnose';
 import { useCallPresence, type PresenceKind } from '../hooks/useCallPresence';
 import { useDailyFrame, type WaitingPerson } from '../hooks/useDailyFrame';
+import { useSingleTabCall } from '../hooks/useSingleTabCall';
 import { cx, useVideoUi } from '../theme';
 import { KnockBar } from './KnockBar';
 import { Troubleshooter } from './Troubleshooter';
@@ -48,10 +49,17 @@ export interface CallFrameProps {
   /**
    * Presence (join / heartbeat each minute / leave), sent by the frame itself. The product passes
    * one function that posts to its video-client kit presence route; the backend relays it to
-   * video-service, whose call verdict reads it. Absent = no presence is sent.
+   * video-service, whose call verdict reads it. Absent = no presence is sent. A named guest
+   * (`userName`, a URL with no pass) never sends it: they are nobody the product knows, and
+   * their presence must not read as an invited person attending.
    */
   presence?: (kind: PresenceKind) => Promise<void>;
-  /** Hide the frame (another tab holds the call). */
+  /**
+   * One call per machine (default on): a second tab on the same call stands down and offers to
+   * take it over, so two live microphones never echo in one room.
+   */
+  singleTab?: boolean;
+  /** Hide the frame. */
   enabled?: boolean;
   className?: string;
   style?: CSSProperties;
@@ -80,8 +88,8 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, enabled = true, className, style }: CallFrameProps) {
-  const { joinedNow, leftNow } = useCallPresence(presence);
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, singleTab = true, enabled = true, className, style }: CallFrameProps) {
+  const { joinedNow, leftNow } = useCallPresence(userName ? undefined : presence);
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
   const [joinUrl, setJoinUrl] = useState(url);
@@ -161,11 +169,14 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     onFailure?.(failure, 'idle');
   }, [fetchFreshUrl, onFailure, repair, checkEnded, markEnded]);
 
+  // The room's address without its pass: the same in every tab on this call.
+  const tab = useSingleTabCall(singleTab ? (joinUrl.split('?')[0] ?? null) : null);
+
   const frame = useDailyFrame({
     containerRef,
     url: joinUrl,
     userName,
-    enabled,
+    enabled: enabled && !tab.heldElsewhere,
     onJoined: () => {
       joinedNow();
       autoTried.current = false;
@@ -286,7 +297,19 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       <div className="ve-stage">
         <div ref={containerRef} className="ve-frame" />
 
-        {frame.state === 'loading' && !ended ? <div className="ve-overlay"><p>{labels.connecting}</p></div> : null}
+        {tab.heldElsewhere ? (
+          <div className="ve-overlay" role="status">
+            <p className="ve-overlay__title">{labels.heldElsewhereTitle}</p>
+            <p className="ve-overlay__detail">{labels.heldElsewhereDetail}</p>
+            <div className="ve-overlay__actions">
+              <button type="button" className={cx('ve-btn ve-btn--primary', classNames.button, classNames.buttonPrimary)} onClick={tab.takeOver}>
+                {labels.moveCallHere}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {frame.state === 'loading' && !ended && !tab.heldElsewhere ? <div className="ve-overlay"><p>{labels.connecting}</p></div> : null}
 
         {endStep === 'confirm' || endStep === 'ending' || endStep === 'left-host' ? (
           <div className="ve-overlay ve-overlay--end" role="alertdialog" aria-labelledby="ve-end-title">

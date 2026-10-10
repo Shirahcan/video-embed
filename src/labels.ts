@@ -66,6 +66,13 @@ export interface VideoLabels {
   leftKeepOpen: string;
   callEnded: string;
   callEndedDetail: string;
+  // One call per machine (CallFrame's single-tab guard)
+  heldElsewhereTitle: string;
+  heldElsewhereDetail: string;
+  moveCallHere: string;
+  // The call is transcribed (TranscriptionNotice): the host keeps the record, everyone else is told
+  transcriptionNoticeHost: string;
+  transcriptionNoticeAttendee: string;
   // A call on another platform (ExternalCall)
   externalTitle: (platform: string) => string;
   externalDetail: string;
@@ -319,6 +326,11 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   leftKeepOpen: 'Leave it open and the others can carry on; it ends by itself once everyone has gone.',
   callEnded: 'This call has ended',
   callEndedDetail: 'The host ended the call for everyone. You can close this page.',
+  heldElsewhereTitle: 'You are already in this call in another tab',
+  heldElsewhereDetail: 'Joining twice from one device makes both microphones live, which causes echo for everyone else. Switch back to the other tab, or move the call here.',
+  moveCallHere: 'Move the call here',
+  transcriptionNoticeHost: 'This call is transcribed, so you keep an accurate record of what was discussed. Everyone in the call sees this notice.',
+  transcriptionNoticeAttendee: 'This call is transcribed so the host keeps an accurate record of what was discussed. Ask them if you have questions about it.',
   externalTitle: (platform) => `This call runs on ${platform}`,
   externalDetail: 'It opens in a new tab. You can keep this page open.',
   externalOpen: (platform) => `Open ${platform}`,

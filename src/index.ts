@@ -11,6 +11,8 @@ export type { VideoClassNames, VideoTheme, VideoUiProviderProps } from './theme'
 export { useDailyFrame } from './hooks/useDailyFrame';
 export type { FrameState, UseDailyFrameOptions, UseDailyFrameResult, WaitingPerson } from './hooks/useDailyFrame';
 export { useCallPresence } from './hooks/useCallPresence';
+export { useSingleTabCall } from './hooks/useSingleTabCall';
+export type { SingleTabCall } from './hooks/useSingleTabCall';
 export type { PresenceKind } from './hooks/useCallPresence';
 export { useMediaCheck } from './hooks/useMediaCheck';
 export type { CameraStatus, DeviceOption, MediaCheck, MicStatus, SpeakerStatus } from './hooks/useMediaCheck';
@@ -21,6 +23,8 @@ export { ExternalCall, externalCallPlatform } from './components/ExternalCall';
 export type { ExternalCallProps } from './components/ExternalCall';
 export type { DeviceCheckProps } from './components/DeviceCheck';
 export { KnockBar } from './components/KnockBar';
+export { TranscriptionNotice } from './components/TranscriptionNotice';
+export type { TranscriptionNoticeProps } from './components/TranscriptionNotice';
 export { ProblemCard } from './components/ProblemCard';
 export { Troubleshooter } from './components/Troubleshooter';
 export { TranscriptStatus } from './components/TranscriptStatus';
