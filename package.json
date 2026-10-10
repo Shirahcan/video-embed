@@ -1,6 +1,6 @@
 {
   "name": "@shirahcan/video-embed",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "description": "One call UI for every product on video-service: the Daily frame with typed failures and recovery, a pre-join device check that diagnoses instead of guessing, a troubleshooter, and the host's admit bar for people knocking. Themeable; it never calls a product's backend itself.",
   "type": "module",

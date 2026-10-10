@@ -12,6 +12,8 @@ export type RecoveryStatus = 'idle' | 'repairing' | 'repaired' | 'failed' | 'off
 export interface CallFrameProps {
   /** The tokened join URL the product's backend handed out. */
   url: string;
+  /** A guest's own name, for a URL with no pass: the host sees it when they knock. */
+  userName?: string | null;
   /**
    * Ask the product for a FRESH join after a failure. The product's backend repairs the room
    * (same name, so every link still works), mints a new token and returns the new URL.
@@ -78,7 +80,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, enabled = true, className, style }: CallFrameProps) {
   const { joinedNow, leftNow } = useCallPresence(presence);
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -162,6 +164,7 @@ export function CallFrame({ url, fetchFreshUrl, onJoined, onLeft, onFailure, onD
   const frame = useDailyFrame({
     containerRef,
     url: joinUrl,
+    userName,
     enabled,
     onJoined: () => {
       joinedNow();

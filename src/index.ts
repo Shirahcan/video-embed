@@ -33,3 +33,5 @@ export { JoinIssuesPanel } from './components/JoinIssuesPanel';
 export type { JoinIssueItem, JoinIssuesAdapter, JoinIssuesPanelProps } from './components/JoinIssuesPanel';
 export { TranscriptReader } from './components/TranscriptReader';
 export type { TranscriptReaderProps } from './components/TranscriptReader';
+export { ShareCallLink } from './components/ShareCallLink';
+export type { ShareCallAdapter, ShareCallLinkProps, ShareCallOption } from './components/ShareCallLink';

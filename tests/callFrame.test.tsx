@@ -7,6 +7,7 @@ type Handler = (event?: unknown) => void;
 class FakeFrame {
   handlers = new Map<string, Handler>();
   joins: string[] = [];
+  names: Array<string | undefined> = [];
   waitingList: Record<string, { id: string; name: string }> = {};
   updates: Array<Record<string, { grantRequestedAccess: boolean }>> = [];
   on(event: string, handler: Handler) {
@@ -16,8 +17,9 @@ class FakeFrame {
   emit(event: string, payload?: unknown) {
     this.handlers.get(event)?.(payload);
   }
-  async join({ url }: { url: string }) {
+  async join({ url, userName }: { url: string; userName?: string }) {
     this.joins.push(url);
+    this.names.push(userName);
   }
   async destroy() {}
   participants() {
@@ -53,6 +55,12 @@ const latest = () => frames[frames.length - 1]!;
 describe('CallFrame', () => {
   beforeEach(() => {
     frames.length = 0;
+  });
+
+  it('joins a passless room under the name a guest typed, so the host sees it on the knock', async () => {
+    render(<CallFrame url="https://shirah.daily.co/room" userName="Ana Ruiz" />);
+    await waitFor(() => expect(latest().joins).toEqual(['https://shirah.daily.co/room']));
+    expect(latest().names).toEqual(['Ana Ruiz']);
   });
 
   it('repairs an expired room once by itself and rejoins on the fresh URL', async () => {

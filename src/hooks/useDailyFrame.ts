@@ -26,6 +26,11 @@ export interface UseDailyFrameOptions {
   containerRef: RefObject<HTMLDivElement | null>;
   /** Full join URL including `?t=`. Null keeps the frame unmounted. */
   url: string | null;
+  /**
+   * The name to join under when the URL carries no pass (a guest who typed it): Daily shows it
+   * to the host on the knock. Ignored when the pass already names the person.
+   */
+  userName?: string | null;
   enabled?: boolean;
   onJoined?: () => void;
   onLeft?: () => void;
@@ -58,6 +63,7 @@ function roomIdentity(url: string | null): string | null {
 export function useDailyFrame({
   containerRef,
   url,
+  userName = null,
   enabled = true,
   onJoined,
   onLeft,
@@ -76,11 +82,13 @@ export function useDailyFrame({
   const creatingRef = useRef(false);
   const handlersRef = useRef({ onJoined, onLeft, onDeviceError, onFailure, onKnock });
   const urlRef = useRef(url);
+  const nameRef = useRef(userName);
 
   // Latest callbacks and URL without rebuilding the frame (a re-minted token must not).
   useLayoutEffect(() => {
     handlersRef.current = { onJoined, onLeft, onDeviceError, onFailure, onKnock };
     urlRef.current = url;
+    nameRef.current = userName;
   });
 
   const identity = roomIdentity(url);
@@ -192,7 +200,7 @@ export function useDailyFrame({
 
         const joinUrl = urlRef.current;
         if (!joinUrl) return;
-        await frame.join({ url: joinUrl });
+        await frame.join(nameRef.current ? { url: joinUrl, userName: nameRef.current } : { url: joinUrl });
       } catch (err) {
         // join() rejects for the same failure the `error` event already reported: once only.
         if (cancelled || reported) return;

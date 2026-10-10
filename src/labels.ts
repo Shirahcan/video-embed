@@ -90,6 +90,23 @@ export interface VideoLabels {
   transcriptReadTidied: string;
   transcriptReadAsSpoken: string;
   readerClose: string;
+  /* Share a call link (a person's own link, or a guest link that asks to join) */
+  shareStripTitle: string;
+  shareStripHint: string;
+  shareOpen: string;
+  shareTitle: string;
+  shareWho: string;
+  sharePersonHint: string;
+  shareGuestHint: string;
+  shareLoading: string;
+  shareMaking: string;
+  shareCopy: string;
+  shareCopied: string;
+  shareShare: string;
+  shareClose: string;
+  shareFailed: string;
+  /** The text a device's share sheet sends with the link. */
+  shareText: (callTitle: string) => string;
   readerCopy: string;
   readerCopied: string;
   // A call's kept transcripts (TranscriptPanel)
@@ -345,6 +362,21 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   transcriptReadTidied: 'Read the tidied transcript',
   transcriptReadAsSpoken: 'Read it as spoken',
   readerClose: 'Close',
+  shareStripTitle: 'Invite someone to this call',
+  shareStripHint: 'Send a person their own link, or a link anyone can use to ask to join.',
+  shareOpen: 'Share link',
+  shareTitle: 'Share a link to this call',
+  shareWho: 'Who is it for?',
+  sharePersonHint: 'Their own link: it opens the call without signing in, as them. Send it only to them.',
+  shareGuestHint: 'Anyone with this link types their name and asks to join. You let them in from the call.',
+  shareLoading: 'Loading...',
+  shareMaking: 'Making the link...',
+  shareCopy: 'Copy link',
+  shareCopied: 'Copied',
+  shareShare: 'Share...',
+  shareClose: 'Close',
+  shareFailed: 'The link could not be made. Please try again.',
+  shareText: (callTitle) => `Join "${callTitle}"`,
   readerCopy: 'Copy text',
   readerCopied: 'Copied',
   transcriptsHeading: 'Call transcripts',
