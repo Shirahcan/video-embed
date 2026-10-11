@@ -81,6 +81,15 @@ export interface VideoLabels {
   externalMissing: string;
   externalMissingDetail: string;
   callEndedByYouDetail: string;
+  // Transcript retention (admin)
+  retentionTitle: string;
+  retentionIntro: string;
+  retentionDays: string;
+  retentionHint: (maxDays: number) => string;
+  retentionSave: string;
+  retentionSaved: string;
+  retentionFailed: string;
+
   // Call transcript
   transcriptTitle: (state: TranscriptState) => string;
   transcriptDetail: (state: TranscriptState, ctx: { expectedByLabel: string | null; readyWithinMinutes: number }) => string;
@@ -338,6 +347,13 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   externalMissing: 'No call link yet',
   externalMissingDetail: 'This meeting does not have a call link attached. Ask the host to add one.',
   callEndedByYouDetail: 'You ended the call for everyone.',
+  retentionTitle: 'Call transcripts',
+  retentionIntro: 'How long a call transcript is kept after the call. It is then deleted for good, here and on the video provider.',
+  retentionDays: 'Delete transcripts after (days)',
+  retentionHint: (maxDays) => `Leave empty to keep them. 1 to ${maxDays} days.`,
+  retentionSave: 'Save',
+  retentionSaved: 'Saved',
+  retentionFailed: 'The retention could not be saved. Try again.',
   transcriptTitle: (state) => {
     switch (state) {
       case 'preparing': return 'Transcript on its way';

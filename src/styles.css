@@ -171,3 +171,10 @@
 .ve-share__url:focus { border-color: var(--ve-accent); }
 .ve-share__error { margin: 8px 0 0; font-size: 13px; color: var(--ve-danger, #b91c1c); }
 @media (max-width: 540px) { .ve-share { flex-direction: column; align-items: flex-start; } }
+
+/* Transcript retention (admin) */
+.ve-retention { display: grid; gap: 8px; }
+.ve-retention__row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; color: var(--ve-ink); }
+.ve-retention__input { width: 7rem; padding: 8px 12px; border: 1px solid var(--ve-border); border-radius: calc(var(--ve-radius) * 0.6); background: var(--ve-surface); color: var(--ve-ink); font: inherit; outline: none; }
+.ve-retention__input:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ve-accent) 35%, transparent); }
+.ve-retention__error { margin: 0; font-size: 13px; color: var(--ve-danger); }

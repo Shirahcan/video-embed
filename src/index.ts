@@ -39,3 +39,5 @@ export { TranscriptReader } from './components/TranscriptReader';
 export type { TranscriptReaderProps } from './components/TranscriptReader';
 export { ShareCallLink } from './components/ShareCallLink';
 export type { ShareCallAdapter, ShareCallLinkProps, ShareCallOption } from './components/ShareCallLink';
+export { TranscriptRetention } from './components/TranscriptRetention';
+export type { TranscriptRetentionAdapter, TranscriptRetentionProps, TranscriptRetentionState } from './components/TranscriptRetention';
