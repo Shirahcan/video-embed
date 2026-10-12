@@ -79,6 +79,30 @@ describe('CallFrame', () => {
     expect(onFailure).toHaveBeenCalledWith(expect.objectContaining({ kind: 'room-expired' }), 'repaired');
   });
 
+  it('offers a backup Google Meet once the room could not be fixed, and opens it', async () => {
+    const fetchFreshUrl = vi.fn().mockRejectedValue(new Error('down'));
+    const switchTo = vi.fn().mockResolvedValue('https://meet.google.com/bak-kupm-eet');
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    render(<CallFrame url="https://shirah.daily.co/room?t=OLD" fetchFreshUrl={fetchFreshUrl} backup={{ switchTo }} />);
+
+    await waitFor(() => expect(latest().joins).toEqual(['https://shirah.daily.co/room?t=OLD']));
+    expect(screen.queryByRole('button', { name: 'Switch to a backup Google Meet' })).toBeNull();
+    act(() => latest().emit('error', { errorMsg: 'Meeting has ended', error: { type: 'exp-room', msg: 'Meeting has ended' } }));
+
+    const button = await screen.findByRole('button', { name: 'Switch to a backup Google Meet' });
+    act(() => button.click());
+    await waitFor(() => expect(open).toHaveBeenCalledWith('https://meet.google.com/bak-kupm-eet', '_blank', 'noopener,noreferrer'));
+    expect(switchTo).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('Everyone in this call has been sent this link.')).toBeTruthy();
+    open.mockRestore();
+  });
+
+  it('tells someone whose call still works that it moved to a backup meeting', async () => {
+    render(<CallFrame url="https://shirah.daily.co/room?t=A" backup={{ switchTo: vi.fn(), url: 'https://meet.google.com/bak-kupm-eet' }} />);
+    expect(await screen.findByText('This call moved to a backup Google Meet.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open the backup Google Meet' })).toBeTruthy();
+  });
+
   it('reads a plain-object join() rejection and reports a failure once', async () => {
     const onFailure = vi.fn();
     const proto = FakeFrame.prototype as unknown as { join: (o: { url: string }) => Promise<void> };

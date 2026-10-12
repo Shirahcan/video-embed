@@ -101,6 +101,7 @@
 .ve-btn:disabled { opacity: 0.6; cursor: default; }
 .ve-overlay--end { background: rgba(15, 23, 42, 0.92); z-index: 20; }
 .ve-overlay__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
+.ve-backup { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 6px; padding-top: 10px; border-top: 1px solid rgba(148, 163, 184, 0.25); }
 .ve-overlay__fine { margin: 4px 0 0; max-width: 420px; font-size: 12px; color: #94a3b8; }
 
 /* Call transcript status */

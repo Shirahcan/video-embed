@@ -5,6 +5,7 @@ import { useCallPresence, type PresenceKind } from '../hooks/useCallPresence';
 import { useDailyFrame, type WaitingPerson } from '../hooks/useDailyFrame';
 import { useSingleTabCall } from '../hooks/useSingleTabCall';
 import { cx, useVideoUi } from '../theme';
+import { BackupCallOffer, type BackupCall } from './BackupCallOffer';
 import { KnockBar } from './KnockBar';
 import { Troubleshooter } from './Troubleshooter';
 
@@ -59,6 +60,12 @@ export interface CallFrameProps {
    * take it over, so two live microphones never echo in one room.
    */
   singleTab?: boolean;
+  /**
+   * The last rescue: when the room cannot be fixed, offer a matching meeting on the product's
+   * backup account. With `url` set (someone already switched), everyone on the call is told.
+   * Absent = no backup is offered.
+   */
+  backup?: BackupCall;
   /** Hide the frame. */
   enabled?: boolean;
   className?: string;
@@ -88,7 +95,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, singleTab = true, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, singleTab = true, enabled = true, className, style }: CallFrameProps) {
   const { joinedNow, leftNow } = useCallPresence(userName ? undefined : presence);
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -266,6 +273,8 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
         </div>
       ) : null}
 
+      {backup?.url && !ended ? <BackupCallOffer variant="notice" switchTo={backup.switchTo} url={backup.url} /> : null}
+
       {frame.state === 'ready' && prejoinLong ? (
         <p className="ve-hint ve-hint--warn ve-prejoin-hint" role="status">{labels.prejoinPermissionHint}</p>
       ) : null}
@@ -366,6 +375,9 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
               >
                 {recovery === 'failed' ? labels.tryAgain : labels.rejoin}
               </button>
+            ) : null}
+            {backup && (recovery === 'failed' || failure.kind === 'unsupported-browser') ? (
+              <BackupCallOffer switchTo={backup.switchTo} url={backup.url} />
             ) : null}
           </div>
         ) : null}

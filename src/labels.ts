@@ -50,6 +50,14 @@ export interface VideoLabels {
   repairing: string;
   repaired: string;
   repairFailed: string;
+  /** BackupCallOffer: carry on in a matching Google Meet when the room cannot be fixed. */
+  backupSwitch: string;
+  backupSwitching: string;
+  backupHint: string;
+  backupOpen: string;
+  backupSent: string;
+  backupFailed: string;
+  backupMoved: string;
   waitingForNetwork: string;
   // Host: people knocking
   knockingOne: (name: string) => string;
@@ -321,6 +329,13 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   repairing: 'Fixing the room...',
   repaired: 'Room fixed. Reconnecting you.',
   repairFailed: 'We could not fix the room just now. Try again in a moment.',
+  backupSwitch: 'Switch to a backup Google Meet',
+  backupSwitching: 'Making the backup meeting...',
+  backupHint: 'Still not working? Carry on in a Google Meet instead. Everyone in this call is sent the link.',
+  backupOpen: 'Open the backup Google Meet',
+  backupSent: 'Everyone in this call has been sent this link.',
+  backupFailed: 'The backup meeting could not be made just now. Try again in a moment.',
+  backupMoved: 'This call moved to a backup Google Meet.',
   waitingForNetwork: 'Waiting for your connection...',
   knockingOne: (name) => `${name || 'Someone'} is asking to join`,
   knockingMany: (count) => `${count} people are asking to join`,

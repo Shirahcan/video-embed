@@ -20,6 +20,8 @@ export { CallFrame } from './components/CallFrame';
 export type { CallFrameProps, RecoveryStatus } from './components/CallFrame';
 export { DeviceCheck } from './components/DeviceCheck';
 export { ExternalCall, externalCallPlatform } from './components/ExternalCall';
+export { BackupCallOffer } from './components/BackupCallOffer';
+export type { BackupCall, BackupCallOfferProps } from './components/BackupCallOffer';
 export type { ExternalCallProps } from './components/ExternalCall';
 export type { DeviceCheckProps } from './components/DeviceCheck';
 export { KnockBar } from './components/KnockBar';
