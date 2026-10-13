@@ -7,6 +7,7 @@ import { useSingleTabCall } from '../hooks/useSingleTabCall';
 import { cx, useVideoUi } from '../theme';
 import { BackupCallOffer, type BackupCall } from './BackupCallOffer';
 import { KnockBar } from './KnockBar';
+import { ScheduledEndCue } from './ScheduledEndCue';
 import { Troubleshooter } from './Troubleshooter';
 
 export type RecoveryStatus = 'idle' | 'repairing' | 'repaired' | 'failed' | 'offline';
@@ -66,6 +67,14 @@ export interface CallFrameProps {
    * Absent = no backup is offered.
    */
   backup?: BackupCall;
+  /**
+   * When the meeting was BOOKED to end (ISO 8601), not when the room closes. While someone is in
+   * the call: a countdown over the last minutes, then "You are at the end of the scheduled meeting
+   * time". Absent = no cue.
+   */
+  scheduledEnd?: string | null;
+  /** What the viewer can do at the booked end (a host keeping the room open longer), when allowed. */
+  endCueAction?: { label: string; onSelect: () => void };
   /** Hide the frame. */
   enabled?: boolean;
   className?: string;
@@ -95,7 +104,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, singleTab = true, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, singleTab = true, enabled = true, className, style }: CallFrameProps) {
   const { joinedNow, leftNow } = useCallPresence(userName ? undefined : presence);
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -274,6 +283,8 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       ) : null}
 
       {backup?.url && !ended ? <BackupCallOffer variant="notice" switchTo={backup.switchTo} url={backup.url} /> : null}
+
+      {scheduledEnd && !ended && frame.state === 'joined' ? <ScheduledEndCue scheduledEnd={scheduledEnd} action={endCueAction} /> : null}
 
       {frame.state === 'ready' && prejoinLong ? (
         <p className="ve-hint ve-hint--warn ve-prejoin-hint" role="status">{labels.prejoinPermissionHint}</p>

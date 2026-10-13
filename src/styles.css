@@ -179,3 +179,8 @@
 .ve-retention__input { width: 7rem; padding: 8px 12px; border: 1px solid var(--ve-border); border-radius: calc(var(--ve-radius) * 0.6); background: var(--ve-surface); color: var(--ve-ink); font: inherit; outline: none; }
 .ve-retention__input:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ve-accent) 35%, transparent); }
 .ve-retention__error { margin: 0; font-size: 13px; color: var(--ve-danger); }
+
+/* The call against its booked time (ScheduledEndCue) */
+.ve-banner--time { color: var(--ve-ink, #0f172a); background: color-mix(in srgb, var(--ve-accent, #4361ee) 7%, white); border-color: color-mix(in srgb, var(--ve-accent, #4361ee) 22%, white); font-variant-numeric: tabular-nums; }
+.ve-banner--end { color: var(--ve-warn); background: color-mix(in srgb, var(--ve-warn) 8%, white); border-color: color-mix(in srgb, var(--ve-warn) 25%, white); }
+.ve-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

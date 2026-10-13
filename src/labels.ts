@@ -63,6 +63,10 @@ export interface VideoLabels {
   knockingOne: (name: string) => string;
   knockingMany: (count: number) => string;
   knockingHint: string;
+  // The call against its booked time (ScheduledEndCue)
+  endCueCountdown: (mmss: string) => string;
+  endCueMinutes: (minutes: number) => string;
+  endCueReached: string;
   // Ending the call
   endForEveryone: string;
   endConfirmTitle: string;
@@ -340,6 +344,9 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   knockingOne: (name) => `${name || 'Someone'} is asking to join`,
   knockingMany: (count) => `${count} people are asking to join`,
   knockingHint: 'Let them in from the request shown inside the call.',
+  endCueCountdown: (mmss) => `${mmss} left in the scheduled time`,
+  endCueMinutes: (minutes) => (minutes === 1 ? 'About 1 minute left in the scheduled time' : `About ${minutes} minutes left in the scheduled time`),
+  endCueReached: 'You are at the end of the scheduled meeting time',
   endForEveryone: 'End for everyone',
   endConfirmTitle: 'End the call for everyone?',
   endConfirmDetail: 'Everyone is removed now and the link stops working. This cannot be undone.',

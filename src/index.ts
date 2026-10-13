@@ -25,6 +25,8 @@ export type { BackupCall, BackupCallOfferProps } from './components/BackupCallOf
 export type { ExternalCallProps } from './components/ExternalCall';
 export type { DeviceCheckProps } from './components/DeviceCheck';
 export { KnockBar } from './components/KnockBar';
+export { ScheduledEndCue } from './components/ScheduledEndCue';
+export type { ScheduledEndCueProps } from './components/ScheduledEndCue';
 export { TranscriptionNotice } from './components/TranscriptionNotice';
 export type { TranscriptionNoticeProps } from './components/TranscriptionNotice';
 export { ProblemCard } from './components/ProblemCard';
