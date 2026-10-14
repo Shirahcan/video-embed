@@ -5,7 +5,10 @@
    takes the wrapper's margin instead; zero specificity, so a product's own class still wins. */
 :where(.ve-root > :first-child) { margin-block-start: inherit; }
 
-:where(.ve-root, .ve-check, .ve-call) {
+/* The defaults live on :root and are INHERITED, never re-declared on a component: re-declaring them
+   on .ve-call / .ve-check overrode the theme a product sets on its VideoUiProvider, so every product
+   rendered in the default blue (found by MployNow, 2026-10-14; Portify's accent IS the default). */
+:where(:root) {
   --ve-accent: #4361ee;
   --ve-accent-ink: #ffffff;
   --ve-surface: #ffffff;

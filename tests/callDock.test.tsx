@@ -129,4 +129,28 @@ describe('CallDockProvider', () => {
     );
     await waitFor(() => expect(container.querySelector('.ve-dock')).toBeNull());
   });
+
+  it('forgets a call nobody joined once its page goes away, so coming back means Join again', async () => {
+    function Gate({ show }: { show: boolean }) {
+      const dock = useCallDock();
+      return (
+        <>
+          <span data-testid="active">{dock.activeKey ?? 'none'}</span>
+          {show ? <Room call={{ key: 'c1', url: 'https://x.daily.co/room?t=one', returnHref: '/room' }} /> : null}
+        </>
+      );
+    }
+    const { rerender } = render(
+      <CallDockProvider navigate={() => {}}>
+        <Gate show />
+      </CallDockProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('c1'));
+    rerender(
+      <CallDockProvider navigate={() => {}}>
+        <Gate show={false} />
+      </CallDockProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('none'));
+  });
 });

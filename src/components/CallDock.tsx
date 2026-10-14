@@ -122,8 +122,12 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
   // then read and left (too early, already over, never clicked Join) has nothing to keep alive.
   const [hasJoined, setHasJoined] = useState(false);
   const handlersRef = useRef<DockedCallHandlers>({});
+  // The key of a call forgotten unjoined. Its page may still be mounted and re-register it on every
+  // render; it stays forgotten until a placeholder appears again (the page wants the call back).
+  const forgottenRef = useRef<string | null>(null);
 
   const start = useCallback((next: DockedCall, handlers?: DockedCallHandlers) => {
+    if (forgottenRef.current === next.key) return;
     handlersRef.current = handlers ?? {};
     setCall((prev) => {
       if (prev && prev.key === next.key) {
@@ -143,7 +147,10 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
     setHasJoined(false);
   }, []);
 
-  const setAnchor = useCallback((el: HTMLElement | null) => setAnchorState(el), []);
+  const setAnchor = useCallback((el: HTMLElement | null) => {
+    if (el) forgottenRef.current = null;
+    setAnchorState(el);
+  }, []);
   const setOverlay = useCallback((node: ReactNode) => setOverlayState(node), []);
 
   // Follow the placeholder: scroll in any ancestor, resize, its own size, and a 100ms read for a
@@ -185,6 +192,17 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
       window.removeEventListener('resize', measure);
     };
   }, [anchor]);
+
+  // A call nobody joined is forgotten when its page goes away: coming back means Join again (and
+  // the page's device check), never a frame that starts by itself.
+  useEffect(() => {
+    if (call !== null && anchor === null && !hasJoined) {
+      forgottenRef.current = call.key;
+      handlersRef.current = {};
+      setCall(null);
+      setOverlayState(null);
+    }
+  }, [call, anchor, hasJoined]);
 
   const isMinimized = call !== null && (anchor === null || box === null);
 
