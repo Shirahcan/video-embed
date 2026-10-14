@@ -164,7 +164,9 @@
 .ve-issues__when { display: block; }
 
 /* TranscriptReader: viewport-bounded; head and foot stay put, the body scrolls (min-height 0). */
-.ve-reader { padding: 0; border: 0; background: transparent; max-width: min(720px, calc(100vw - 32px)); width: 100%; max-height: 90vh; overflow: visible; }
+.ve-reader { padding: 0; border: 0; background: transparent; max-width: min(720px, calc(100vw - 32px)); width: 100%; max-height: 90vh; overflow: visible; margin: auto; }
+/* `margin: auto` is the browser's own centring of a modal <dialog>; a product reset that zeroes every
+   margin (Tailwind 4's preflight) would pin it to the top-left corner, so the package says it itself. */
 .ve-reader::backdrop { background: rgb(15 23 42 / 0.45); }
 .ve-reader__panel { display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; border-radius: var(--ve-radius); background: var(--ve-surface); color: var(--ve-ink); box-shadow: 0 24px 60px rgb(0 0 0 / 0.18); font-family: var(--ve-font, inherit); }
 .ve-reader__head { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 24px 12px; }
