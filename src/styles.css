@@ -68,6 +68,22 @@
 .ve-call { font-family: var(--ve-font); color: var(--ve-ink); display: grid; gap: 8px; }
 .ve-stage { position: relative; width: 100%; height: var(--ve-stage-height, 70vh); min-height: 420px; border-radius: var(--ve-radius); overflow: hidden; background: #0f172a; }
 .ve-frame { position: absolute; inset: 0; }
+.ve-stage-overlay { position: absolute; inset: 0 0 auto 0; z-index: 5; padding: 12px; pointer-events: none; }
+.ve-stage-overlay > * { pointer-events: auto; }
+/* Fills a box someone else sized (the call dock): the stage takes what the notices above leave. */
+.ve-call--fill { height: 100%; display: flex; flex-direction: column; }
+.ve-call--fill > .ve-stage { flex: 1; height: auto; min-height: 0; }
+.ve-dock { overflow: hidden; }
+.ve-dock--mini { border-radius: 16px; box-shadow: 0 20px 50px rgb(15 23 42 / 0.35); }
+.ve-dock--mini .ve-call > :not(.ve-stage) { display: none; }
+.ve-dock--mini .ve-stage { border-radius: 16px; }
+.ve-dock__bar { position: absolute; inset: auto 0 0 0; z-index: 20; display: flex; align-items: center; gap: 8px; padding: 8px; background: linear-gradient(to top, rgb(0 0 0 / 0.8), transparent); }
+.ve-dock__bar > span { flex: 1; }
+.ve-dock__btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 0; border-radius: 10px; font: inherit; font-size: 12px; font-weight: 700; color: #fff; background: rgb(255 255 255 / 0.15); cursor: pointer; white-space: nowrap; outline: none; }
+.ve-dock__btn:hover { background: rgb(255 255 255 / 0.25); }
+.ve-dock__btn:focus-visible { box-shadow: 0 0 0 2px #fff; }
+.ve-dock__btn--leave { background: rgb(239 68 68 / 0.9); }
+.ve-dock__btn--leave:hover { background: rgb(239 68 68); }
 .ve-overlay { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; background: #0f172a; color: #e2e8f0; font-size: 14px; }
 .ve-overlay__title { margin: 0; font-size: 17px; font-weight: 600; color: #f8fafc; }
 .ve-overlay__detail { margin: 0; max-width: 420px; color: #cbd5e1; }

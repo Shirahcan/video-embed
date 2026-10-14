@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { REPAIRABLE, type CallFailure, type CallFailureKind } from '../callErrors';
 import type { MediaDiagnosis } from '../diagnose';
 import { useCallPresence, type PresenceKind } from '../hooks/useCallPresence';
-import { useDailyFrame, type WaitingPerson } from '../hooks/useDailyFrame';
+import { useDailyFrame, type CallParticipant, type WaitingPerson } from '../hooks/useDailyFrame';
 import { useSingleTabCall } from '../hooks/useSingleTabCall';
 import { cx, useVideoUi } from '../theme';
 import { BackupCallOffer, type BackupCall } from './BackupCallOffer';
@@ -75,6 +75,13 @@ export interface CallFrameProps {
   scheduledEnd?: string | null;
   /** What the viewer can do at the booked end (a host keeping the room open longer), when allowed. */
   endCueAction?: { label: string; onSelect: () => void };
+  /** Who is in the call (not the invited roster), on every join, leave and mute change. */
+  onParticipantsChange?: (people: CallParticipant[]) => void;
+  /**
+   * The product's own notices drawn INSIDE the call's stage, so they stay visible when the call
+   * is fullscreen (a room-closing countdown outside the stage is seen by nobody then).
+   */
+  overlay?: ReactNode;
   /** Hide the frame. */
   enabled?: boolean;
   className?: string;
@@ -104,7 +111,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, singleTab = true, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, onParticipantsChange, overlay, singleTab = true, enabled = true, className, style }: CallFrameProps) {
   const { joinedNow, leftNow } = useCallPresence(userName ? undefined : presence);
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -211,6 +218,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     },
     onFailure: (f) => void handleFailure(f),
     onKnock,
+    onParticipantsChange,
   });
 
   useEffect(() => {
@@ -316,6 +324,8 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
 
       <div className="ve-stage">
         <div ref={containerRef} className="ve-frame" />
+
+        {overlay && !ended && frame.state === 'joined' ? <div className="ve-stage-overlay">{overlay}</div> : null}
 
         {tab.heldElsewhere ? (
           <div className="ve-overlay" role="status">

@@ -46,6 +46,10 @@ export interface VideoLabels {
   failureTitle: (kind: CallFailureKind) => string;
   failureDetail: (kind: CallFailureKind) => string;
   connecting: string;
+  /** The call dock's mini-player, while the person is away from the call's page. */
+  dockBack: string;
+  dockLeave: string;
+  dockRegion: string;
   prejoinPermissionHint: string;
   repairing: string;
   repaired: string;
@@ -329,6 +333,9 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
     }
   },
   connecting: 'Connecting you to the call...',
+  dockBack: 'Back to call',
+  dockLeave: 'Leave',
+  dockRegion: 'Your call',
   prejoinPermissionHint: 'No Join button in the call? Your browser may be asking to use your camera and microphone (look near the address bar) - choose Allow.',
   repairing: 'Fixing the room...',
   repaired: 'Room fixed. Reconnecting you.',

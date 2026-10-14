@@ -22,6 +22,16 @@ export interface WaitingPerson {
   name: string;
 }
 
+/** Someone actually IN the call right now (not the invited roster). */
+export interface CallParticipant {
+  id: string;
+  name: string;
+  /** This browser's own person. */
+  local: boolean;
+  audio: boolean;
+  video: boolean;
+}
+
 export interface UseDailyFrameOptions {
   containerRef: RefObject<HTMLDivElement | null>;
   /** Full join URL including `?t=`. Null keeps the frame unmounted. */
@@ -38,6 +48,8 @@ export interface UseDailyFrameOptions {
   onFailure?: (failure: CallFailure) => void;
   /** Called when someone starts knocking (a product can play a sound, notify, log). */
   onKnock?: (person: WaitingPerson) => void;
+  /** Who is in the call, on every join, leave and change (empty until this person joins). */
+  onParticipantsChange?: (people: CallParticipant[]) => void;
 }
 
 export interface UseDailyFrameResult {
@@ -53,6 +65,21 @@ export interface UseDailyFrameResult {
 }
 
 const READY_FAILSAFE_MS = 12_000;
+
+/** Daily's participants() map (keyed by session, plus `local`) as the flat list a product shows. */
+export function toCallParticipants(raw: Record<string, unknown> | null | undefined): CallParticipant[] {
+  if (!raw) return [];
+  return Object.values(raw).map((p) => {
+    const part = p as { session_id?: string; user_name?: string; local?: boolean; audio?: boolean; video?: boolean };
+    return {
+      id: part.session_id ?? '',
+      name: (part.user_name ?? '').trim(),
+      local: Boolean(part.local),
+      audio: Boolean(part.audio),
+      video: Boolean(part.video),
+    };
+  });
+}
 
 function roomIdentity(url: string | null): string | null {
   if (!url) return null;
@@ -70,6 +97,7 @@ export function useDailyFrame({
   onDeviceError,
   onFailure,
   onKnock,
+  onParticipantsChange,
 }: UseDailyFrameOptions): UseDailyFrameResult {
   const [state, setState] = useState<FrameState>('idle');
   const [failure, setFailure] = useState<CallFailure | null>(null);
@@ -80,13 +108,13 @@ export function useDailyFrame({
 
   const frameRef = useRef<DailyCall | null>(null);
   const creatingRef = useRef(false);
-  const handlersRef = useRef({ onJoined, onLeft, onDeviceError, onFailure, onKnock });
+  const handlersRef = useRef({ onJoined, onLeft, onDeviceError, onFailure, onKnock, onParticipantsChange });
   const urlRef = useRef(url);
   const nameRef = useRef(userName);
 
   // Latest callbacks and URL without rebuilding the frame (a re-minted token must not).
   useLayoutEffect(() => {
-    handlersRef.current = { onJoined, onLeft, onDeviceError, onFailure, onKnock };
+    handlersRef.current = { onJoined, onLeft, onDeviceError, onFailure, onKnock, onParticipantsChange };
     urlRef.current = url;
     nameRef.current = userName;
   });
@@ -133,7 +161,9 @@ export function useDailyFrame({
 
         const syncParticipants = () => {
           try {
-            setParticipantCount(Object.keys(frame.participants() ?? {}).length);
+            const raw = frame.participants() ?? {};
+            setParticipantCount(Object.keys(raw).length);
+            handlersRef.current.onParticipantsChange?.(toCallParticipants(raw as unknown as Record<string, unknown>));
           } catch {
             /* torn down mid-event */
           }
@@ -156,9 +186,11 @@ export function useDailyFrame({
           })
           .on('left-meeting', () => {
             setState('left');
+            handlersRef.current.onParticipantsChange?.([]);
             handlersRef.current.onLeft?.();
           })
           .on('participant-joined', syncParticipants)
+          .on('participant-updated', syncParticipants)
           .on('participant-left', syncParticipants)
           .on('waiting-participant-added', (event) => {
             const p = waitingFrom(event);
