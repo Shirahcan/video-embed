@@ -67,6 +67,21 @@ export interface VideoLabels {
   knockingOne: (name: string) => string;
   knockingMany: (count: number) => string;
   knockingHint: string;
+  // Ask to join by an anyone-link (AskToJoin), and the host letting them in (JoinRequestBar)
+  askTitle: string;
+  askIntro: string;
+  askName: string;
+  askSubmit: string;
+  askAsking: string;
+  askWaiting: string;
+  askWaitingHint: string;
+  askDeclined: string;
+  askExpired: string;
+  askAgain: string;
+  askFailed: string;
+  requestLetIn: string;
+  requestDecline: string;
+  requestHint: string;
   // The call against its booked time (ScheduledEndCue)
   endCueCountdown: (mmss: string) => string;
   endCueMinutes: (minutes: number) => string;
@@ -351,6 +366,20 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   knockingOne: (name) => `${name || 'Someone'} is asking to join`,
   knockingMany: (count) => `${count} people are asking to join`,
   knockingHint: 'Let them in from the request shown inside the call.',
+  askTitle: 'Ask to join this call',
+  askIntro: 'Tell the host who you are. They will let you in from the call.',
+  askName: 'Your name',
+  askSubmit: 'Ask to join',
+  askAsking: 'Asking...',
+  askWaiting: 'Waiting for the host to let you in',
+  askWaitingHint: 'Keep this page open. You will join as soon as they say yes.',
+  askDeclined: 'The host did not let you in to this call.',
+  askExpired: 'Nobody answered in time. You can ask again.',
+  askAgain: 'Ask again',
+  askFailed: 'Your request could not be sent. Please try again.',
+  requestLetIn: 'Let in',
+  requestDecline: 'Decline',
+  requestHint: 'They opened a link to this call and are waiting to join.',
   endCueCountdown: (mmss) => `${mmss} left in the scheduled time`,
   endCueMinutes: (minutes) => (minutes === 1 ? 'About 1 minute left in the scheduled time' : `About ${minutes} minutes left in the scheduled time`),
   endCueReached: 'You are at the end of the scheduled meeting time',

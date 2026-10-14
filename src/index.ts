@@ -25,6 +25,10 @@ export type { BackupCall, BackupCallOfferProps } from './components/BackupCallOf
 export type { ExternalCallProps } from './components/ExternalCall';
 export type { DeviceCheckProps } from './components/DeviceCheck';
 export { KnockBar } from './components/KnockBar';
+export { AskToJoin } from './components/AskToJoin';
+export type { AskToJoinAdapter, AskToJoinProps, JoinRequestStatus } from './components/AskToJoin';
+export { JoinRequestBar, useJoinRequests } from './components/JoinRequestBar';
+export type { JoinRequestsAdapter, JoinRequestsState, WaitingRequest } from './components/JoinRequestBar';
 export { ScheduledEndCue } from './components/ScheduledEndCue';
 export type { ScheduledEndCueProps } from './components/ScheduledEndCue';
 export { TranscriptionNotice } from './components/TranscriptionNotice';

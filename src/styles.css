@@ -100,6 +100,21 @@
 .ve-knock__list { margin: 0; padding: 0 0 0 18px; display: grid; gap: 2px; }
 .ve-knock__hint { margin: 0; font-size: 13px; color: var(--ve-ink-muted); }
 .ve-knock__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+/* JoinRequestBar: each waiting name with its answer (plan M7j) */
+.ve-requests { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.ve-requests__row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ve-requests__actions { display: flex; gap: 6px; flex: none; }
+/* AskToJoin: the guest's name, then the wait (plan M7j) */
+.ve-ask { display: grid; gap: 12px; padding: 20px; border-radius: var(--ve-radius); background: var(--ve-surface); border: 1px solid var(--ve-border); color: var(--ve-ink); font-family: var(--ve-font, inherit); justify-items: start; }
+.ve-ask__title { margin: 0; font-size: 16px; font-weight: 600; }
+.ve-ask__hint { margin: 0; font-size: 13px; color: var(--ve-ink-muted); }
+.ve-ask__field { display: grid; gap: 6px; width: 100%; font-size: 13px; font-weight: 600; }
+.ve-ask__input { width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--ve-border); border-radius: 10px; background: var(--ve-surface); color: var(--ve-ink); font: inherit; font-weight: 400; font-size: 14px; outline: none; }
+.ve-ask__input:focus { border-color: var(--ve-accent); }
+.ve-ask__error { margin: 0; font-size: 13px; color: #b91c1c; }
+.ve-ask__pulse { width: 12px; height: 12px; border-radius: 50%; background: var(--ve-accent); animation: ve-ask-pulse 1.4s ease-in-out infinite; }
+@keyframes ve-ask-pulse { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.1); } }
+@media (prefers-reduced-motion: reduce) { .ve-ask__pulse { animation: none; } }
 @keyframes ve-knock-in { from { transform: translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .ve-trouble { width: 100%; border-radius: var(--ve-radius); background: var(--ve-surface); color: var(--ve-ink); border: 1px solid var(--ve-border); }

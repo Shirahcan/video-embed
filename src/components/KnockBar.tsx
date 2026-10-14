@@ -3,7 +3,7 @@ import type { WaitingPerson } from '../hooks/useDailyFrame';
 import { cx, useVideoUi } from '../theme';
 
 /** A short two-note chime, quiet, so a knock is heard by a host looking at another window. */
-function chime() {
+export function chime() {
   const Ctx = typeof window !== 'undefined'
     ? window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     : undefined;
