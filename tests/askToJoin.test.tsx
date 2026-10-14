@@ -77,3 +77,21 @@ describe('JoinRequestBar', () => {
     expect(result.current.requests).toEqual([]);
   });
 });
+
+describe('polling', () => {
+  it('never asks again while the last question is still out', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let release: (v: { status: 'waiting' }) => void = () => {};
+    const status = vi.fn(() => new Promise<{ status: 'waiting' }>((r) => { release = r; }));
+    const adapter: AskToJoinAdapter = { ask: vi.fn().mockResolvedValue({ id: 'r-1' }), status };
+    render(<AskToJoin adapter={adapter} onAdmitted={vi.fn()} pollMs={100} />);
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Ada' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Ask to join' })));
+
+    await act(async () => vi.advanceTimersByTime(550));
+    expect(status).toHaveBeenCalledTimes(1);
+    await act(async () => release({ status: 'waiting' }));
+    await act(async () => vi.advanceTimersByTime(150));
+    expect(status).toHaveBeenCalledTimes(2);
+  });
+});

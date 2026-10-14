@@ -37,13 +37,19 @@ export function useJoinRequests(adapter: JoinRequestsAdapter, { pollMs = 4000, e
   useEffect(() => {
     if (!enabled) return;
     let live = true;
+    // One question at a time: a slow answer must not pile asks up behind it.
+    let asking = false;
     const tick = async () => {
+      if (asking) return;
+      asking = true;
       try {
         const next = await adapter.list();
         if (live) setRequests(next);
       } catch (e) {
         // The next tick tries again; the call itself carries on.
         errorRef.current?.(e);
+      } finally {
+        asking = false;
       }
     };
     void tick();

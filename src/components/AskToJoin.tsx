@@ -47,7 +47,11 @@ export function AskToJoin({ adapter, onAdmitted, pollMs = 3000, onError, classNa
   useEffect(() => {
     if (waitingId === null) return;
     let live = true;
+    // One question at a time: a slow answer must not pile asks up behind it.
+    let asking = false;
     const tick = async () => {
+      if (asking) return;
+      asking = true;
       try {
         const { status } = await adapter.status(waitingId);
         if (!live) return;
@@ -57,6 +61,8 @@ export function AskToJoin({ adapter, onAdmitted, pollMs = 3000, onError, classNa
       } catch (e) {
         // A missed poll is retried on the next tick; the page says nothing yet.
         errorRef.current?.(e);
+      } finally {
+        asking = false;
       }
     };
     const timer = setInterval(() => void tick(), pollMs);
