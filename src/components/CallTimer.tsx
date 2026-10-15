@@ -3,10 +3,15 @@ import { cx, useVideoUi } from '../theme';
 
 export interface CallTimerProps {
   /**
-   * When the call started (ISO 8601): its first join, from the product's backend, so everyone in
-   * the call reads the same time. Absent or unreadable = since this person joined.
+   * When the call started (ISO 8601), from the product's backend: the booked start or the first
+   * join on the service's record, whichever is earlier, so everyone reads the same time.
    */
   startedAt?: string | null;
+  /**
+   * When THIS person first joined, held by the call frame across leaves and rejoins (epoch ms).
+   * The clock counts from the earlier of the two, so it never resets when people come and go.
+   */
+  joinedAt?: number | null;
   className?: string;
 }
 
@@ -25,10 +30,10 @@ export function formatCallElapsed(seconds: number): string {
  * meeting timer, similar to an ongoing call timer"). Daily Prebuilt has none, so the kit draws it
  * for every product. Only the elapsed time: the booked end is ScheduledEndCue's.
  */
-export function CallTimer({ startedAt = null, className }: CallTimerProps) {
+export function CallTimer({ startedAt = null, joinedAt = null, className }: CallTimerProps) {
   const { labels } = useVideoUi();
-  // Read once, outside render: the moment this person's call frame joined.
-  const [joinedAt] = useState(() => Date.now());
+  // Read once, outside render: the last resort when neither time is known.
+  const [mountedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -38,7 +43,8 @@ export function CallTimer({ startedAt = null, className }: CallTimerProps) {
   }, []);
 
   const parsed = startedAt ? Date.parse(startedAt) : Number.NaN;
-  const from = Number.isNaN(parsed) ? joinedAt : parsed;
+  const known = [parsed, joinedAt ?? Number.NaN].filter((t) => !Number.isNaN(t));
+  const from = known.length > 0 ? Math.min(...known) : mountedAt;
   const time = formatCallElapsed((now - from) / 1000);
 
   return (

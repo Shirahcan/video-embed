@@ -74,6 +74,22 @@ describe('CallFrame', () => {
     expect(screen.getByRole('timer').getAttribute('aria-label')).toBe('Call time 2:05');
   });
 
+  it('keeps the call clock through a leave and a rejoin', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<CallFrame url="https://shirah.daily.co/room?t=B" />);
+      await waitFor(() => expect(latest().joins).toEqual(['https://shirah.daily.co/room?t=B']));
+      act(() => latest().emit('joined-meeting'));
+      act(() => { vi.advanceTimersByTime(90_000); });
+      act(() => latest().emit('left-meeting'));
+      expect(screen.queryByRole('timer')).toBeNull();
+      act(() => latest().emit('joined-meeting'));
+      expect(screen.getByRole('timer').getAttribute('aria-label')).toMatch(/^Call time 1:3\d$/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('repairs an expired room once by itself and rejoins on the fresh URL', async () => {
     const fetchFreshUrl = vi.fn().mockResolvedValue('https://shirah.daily.co/room?t=NEW');
     const onFailure = vi.fn();

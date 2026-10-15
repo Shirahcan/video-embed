@@ -142,6 +142,9 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     onEndedRef.current = onEnded;
   }, [onEnded]);
   const autoTried = useRef(false);
+  // This person's FIRST join in this frame: kept through leaves, rejoins and repairs, so the
+  // running call clock never resets when people come and go.
+  const [firstJoinedAt, setFirstJoinedAt] = useState<number | null>(null);
   const rejoinRef = useRef<() => void>(() => {});
 
   // A new URL from the product (a later join) replaces ours.
@@ -208,6 +211,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     enabled: enabled && !tab.heldElsewhere,
     onJoined: () => {
       joinedNow();
+      setFirstJoinedAt((t) => t ?? Date.now());
       autoTried.current = false;
       setRecovery('idle');
       onJoined?.();
@@ -306,7 +310,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
 
       {!ended && (frame.state === 'joined' || frame.state === 'ready') ? (
         <div className="ve-toolbar">
-          {frame.state === 'joined' ? <CallTimer startedAt={startedAt} /> : null}
+          {frame.state === 'joined' ? <CallTimer startedAt={startedAt} joinedAt={firstJoinedAt} /> : null}
           <span className="ve-toolbar__spacer" />
           <button type="button" className={cx('ve-btn', classNames.button)} onClick={() => setTroubleOpen((o) => !o)} aria-expanded={troubleOpen}>
             {labels.troubleOpen}

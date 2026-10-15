@@ -25,6 +25,12 @@ describe('CallTimer', () => {
     expect(screen.getByText('12:32')).toBeTruthy();
   });
 
+  it('counts from the earlier of the shared start and this person joining', () => {
+    // Joined early (14:55) for a 15:00 call: from the join.
+    render(<CallTimer startedAt="2026-10-15T15:00:00Z" joinedAt={Date.parse('2026-10-15T14:55:00Z')} />);
+    expect(screen.getByRole('timer').getAttribute('aria-label')).toBe('Call time 5:00');
+  });
+
   it('counts from this person joining when the start is unknown', () => {
     render(<CallTimer startedAt={null} />);
     expect(screen.getByText('0:00')).toBeTruthy();
