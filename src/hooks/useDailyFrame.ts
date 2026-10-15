@@ -62,6 +62,8 @@ export interface UseDailyFrameResult {
   rejoin: () => void;
   /** Switch the frame's input devices without leaving the call. */
   setDevices: (devices: { audioDeviceId?: string; videoDeviceId?: string }) => void;
+  /** Leave the call, as the call's own Leave button does. */
+  leave: () => void;
 }
 
 const READY_FAILSAFE_MS = 12_000;
@@ -266,5 +268,10 @@ export function useDailyFrame({
     void frame.setInputDevicesAsync(devices).then(() => setDeviceError(null)).catch(() => {});
   }, []);
 
-  return { state, failure, deviceError, participantCount, waiting, rejoin, setDevices };
+  const leave = useCallback(() => {
+    const frame = frameRef.current;
+    if (frame) void frame.leave().catch(() => {});
+  }, []);
+
+  return { state, failure, deviceError, participantCount, waiting, rejoin, setDevices, leave };
 }

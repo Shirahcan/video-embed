@@ -21,9 +21,15 @@ class FakeFrame {
     this.joins.push(url);
     this.names.push(userName);
   }
+  left = 0;
+  people: Record<string, unknown> = {};
+  async leave() {
+    this.left += 1;
+    this.emit('left-meeting');
+  }
   async destroy() {}
   participants() {
-    return {};
+    return this.people;
   }
   waitingParticipants() {
     return this.waitingList;
@@ -58,6 +64,55 @@ describe('CallFrame', () => {
   beforeEach(() => {
     frames.length = 0;
     window.localStorage.clear();
+  });
+
+  it('asks someone alone in the call for 15 minutes whether to keep waiting or leave', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<CallFrame url="https://shirah.daily.co/room?t=W" onEndForEveryone={async () => {}} />);
+      await waitFor(() => expect(latest().joins).toEqual(['https://shirah.daily.co/room?t=W']));
+      latest().people = { local: { session_id: 'me', local: true } };
+      act(() => latest().emit('joined-meeting'));
+
+      act(() => vi.advanceTimersByTime(14 * 60_000));
+      expect(screen.queryByText('You have been the only one here for 15 minutes')).toBeNull();
+      act(() => vi.advanceTimersByTime(60_000 + 10));
+      expect(screen.getByText('You have been the only one here for 15 minutes')).toBeTruthy();
+
+      // Keep waiting: asked again only after another 15 minutes.
+      act(() => screen.getByRole('button', { name: 'Keep waiting' }).click());
+      expect(screen.queryByText('You have been the only one here for 15 minutes')).toBeNull();
+      act(() => vi.advanceTimersByTime(15 * 60_000 + 10));
+      expect(screen.getByText('You have been the only one here for 15 minutes')).toBeTruthy();
+
+      // Leave: they leave the call, and a host is not asked "is the call over?" about an empty call.
+      await act(async () => screen.getByRole('button', { name: 'Leave the call' }).click());
+      expect(latest().left).toBe(1);
+      expect(screen.queryByText('You left the call. Is it over?')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never asks while someone else is in the call, and restarts the wait when they go', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<CallFrame url="https://shirah.daily.co/room?t=X" />);
+      await waitFor(() => expect(latest().joins).toEqual(['https://shirah.daily.co/room?t=X']));
+      latest().people = { local: {}, other: {} };
+      act(() => latest().emit('joined-meeting'));
+      act(() => vi.advanceTimersByTime(20 * 60_000));
+      expect(screen.queryByText(/only one here/)).toBeNull();
+
+      latest().people = { local: {} };
+      act(() => latest().emit('participant-left'));
+      act(() => vi.advanceTimersByTime(14 * 60_000));
+      expect(screen.queryByText(/only one here/)).toBeNull();
+      act(() => vi.advanceTimersByTime(60_000 + 10));
+      expect(screen.getByText(/only one here/)).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('joins a passless room under the name a guest typed, so the host sees it on the knock', async () => {

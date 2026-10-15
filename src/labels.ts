@@ -95,6 +95,11 @@ export interface VideoLabels {
   endFailed: string;
   leftTitle: string;
   leftKeepOpen: string;
+  // Waiting alone (nobody else in the call for a while)
+  aloneTitle: (minutes: number) => string;
+  aloneDetail: string;
+  aloneKeepWaiting: string;
+  aloneLeave: string;
   callEnded: string;
   callEndedDetail: string;
   // One call per machine (CallFrame's single-tab guard)
@@ -396,6 +401,10 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   endFailed: 'The call could not be ended just now. Try again.',
   leftTitle: 'You left the call. Is it over?',
   leftKeepOpen: 'Leave it open and the others can carry on; it ends by itself once everyone has gone.',
+  aloneTitle: (minutes) => `You have been the only one here for ${minutes} minutes`,
+  aloneDetail: 'Keep waiting if they may still join, or leave the call. You can come back through the same link.',
+  aloneKeepWaiting: 'Keep waiting',
+  aloneLeave: 'Leave the call',
   callEnded: 'This call has ended',
   callEndedDetail: 'The host ended the call for everyone. You can close this page.',
   heldElsewhereTitle: 'You are already in this call in another tab',

@@ -88,6 +88,11 @@ export interface CallFrameProps {
    * is fullscreen (a room-closing countdown outside the stage is seen by nobody then).
    */
   overlay?: ReactNode;
+  /**
+   * Minutes alone in the call (nobody else in it) before the viewer is asked whether to keep
+   * waiting or leave (owner 2026-10-15). Keep waiting asks again after as long again. 0 = never.
+   */
+  aloneAfterMinutes?: number;
   /** Hide the frame. */
   enabled?: boolean;
   className?: string;
@@ -117,7 +122,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, overlay, singleTab = true, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, overlay, aloneAfterMinutes = 15, singleTab = true, enabled = true, className, style }: CallFrameProps) {
   const { joinedNow, leftNow } = useCallPresence(userName ? undefined : presence);
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -146,6 +151,11 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
   // running call clock never resets when people come and go.
   const [firstJoinedAt, setFirstJoinedAt] = useState<number | null>(null);
   const rejoinRef = useRef<() => void>(() => {});
+  // Waiting alone: when the viewer became the only one in the call, and whether they are being asked.
+  const [aloneSince, setAloneSince] = useState<number | null>(null);
+  const [aloneAsk, setAloneAsk] = useState(false);
+  // Leaving from the waiting prompt is not "is the call over?": nobody else is in it.
+  const leavingAloneRef = useRef(false);
 
   // A new URL from the product (a later join) replaces ours.
   const [seenUrl, setSeenUrl] = useState(url);
@@ -219,7 +229,8 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     onLeft: () => {
       leftNow();
       // A host who leaves by the call's own Leave button is asked whether the call is over.
-      if (onEndForEveryone && !endedRef.current && !endingRef.current) setEndStep('left-host');
+      if (onEndForEveryone && !endedRef.current && !endingRef.current && !leavingAloneRef.current) setEndStep('left-host');
+      leavingAloneRef.current = false;
       onLeft?.();
     },
     onDeviceError: (d) => {
@@ -234,6 +245,21 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
   useEffect(() => {
     rejoinRef.current = frame.rejoin;
   }, [frame.rejoin]);
+
+  // Alone = joined with nobody else in the call. The clock restarts whenever someone else is there.
+  const alone = frame.state === 'joined' && frame.participantCount <= 1;
+  const [seenAlone, setSeenAlone] = useState(alone);
+  if (alone !== seenAlone) {
+    setSeenAlone(alone);
+    setAloneSince(alone ? Date.now() : null);
+    if (!alone) setAloneAsk(false);
+  }
+  useEffect(() => {
+    if (aloneSince === null || aloneAsk || aloneAfterMinutes <= 0) return undefined;
+    const wait = Math.max(0, aloneSince + aloneAfterMinutes * 60_000 - Date.now());
+    const t = setTimeout(() => setAloneAsk(true), wait);
+    return () => clearTimeout(t);
+  }, [aloneSince, aloneAsk, aloneAfterMinutes]);
 
   // 20 seconds on Daily's pre-join screen without joining: likely a browser prompt nobody saw.
   // Only when the browser IS still asking: with access already granted, Daily's Join button is
@@ -380,6 +406,36 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
               </button>
             </div>
             {endStep === 'left-host' ? <p className="ve-overlay__fine">{labels.leftKeepOpen}</p> : null}
+          </div>
+        ) : null}
+
+        {aloneAsk && alone && !ended && endStep === 'none' ? (
+          <div className="ve-overlay ve-overlay--alone" role="alertdialog" aria-labelledby="ve-alone-title">
+            <p id="ve-alone-title" className="ve-overlay__title">{labels.aloneTitle(aloneAfterMinutes)}</p>
+            <p className="ve-overlay__detail">{labels.aloneDetail}</p>
+            <div className="ve-overlay__actions">
+              <button
+                type="button"
+                className={cx('ve-btn ve-btn--primary', classNames.button, classNames.buttonPrimary)}
+                onClick={() => {
+                  setAloneAsk(false);
+                  setAloneSince(Date.now());
+                }}
+              >
+                {labels.aloneKeepWaiting}
+              </button>
+              <button
+                type="button"
+                className={cx('ve-btn', classNames.button)}
+                onClick={() => {
+                  setAloneAsk(false);
+                  leavingAloneRef.current = true;
+                  frame.leave();
+                }}
+              >
+                {labels.aloneLeave}
+              </button>
+            </div>
           </div>
         ) : null}
 
