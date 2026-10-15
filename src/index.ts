@@ -30,6 +30,12 @@ export type { AskToJoinAdapter, AskToJoinProps, JoinRequestStatus } from './comp
 export { JoinRequestBar, useJoinRequests } from './components/JoinRequestBar';
 export type { JoinRequestsAdapter, JoinRequestsState, WaitingRequest } from './components/JoinRequestBar';
 export { ScheduledEndCue } from './components/ScheduledEndCue';
+export { CallTimer, formatCallElapsed } from './components/CallTimer';
+export type { CallTimerProps } from './components/CallTimer';
+export { CallOverNotice } from './components/CallOverNotice';
+export type { CallOverNoticeProps } from './components/CallOverNotice';
+export { CALL_OVER_NOTICE_MS, useCallOverExit } from './hooks/useCallOverExit';
+export type { CallOverExit, CallOverExitOptions, CallOverHow } from './hooks/useCallOverExit';
 export type { ScheduledEndCueProps } from './components/ScheduledEndCue';
 export { TranscriptionNotice } from './components/TranscriptionNotice';
 export type { TranscriptionNoticeProps } from './components/TranscriptionNotice';

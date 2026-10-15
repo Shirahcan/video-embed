@@ -7,6 +7,7 @@ import { useSingleTabCall } from '../hooks/useSingleTabCall';
 import { cx, useVideoUi } from '../theme';
 import { BackupCallOffer, type BackupCall } from './BackupCallOffer';
 import { KnockBar } from './KnockBar';
+import { CallTimer } from './CallTimer';
 import { ScheduledEndCue } from './ScheduledEndCue';
 import { Troubleshooter } from './Troubleshooter';
 
@@ -75,6 +76,11 @@ export interface CallFrameProps {
   scheduledEnd?: string | null;
   /** What the viewer can do at the booked end (a host keeping the room open longer), when allowed. */
   endCueAction?: { label: string; onSelect: () => void };
+  /**
+   * When the call started (its first join, ISO 8601), for the running call clock shown while this
+   * person is in it. Absent = counted from their own join.
+   */
+  startedAt?: string | null;
   /** Who is in the call (not the invited roster), on every join, leave and mute change. */
   onParticipantsChange?: (people: CallParticipant[]) => void;
   /**
@@ -111,7 +117,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, onParticipantsChange, overlay, singleTab = true, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, overlay, singleTab = true, enabled = true, className, style }: CallFrameProps) {
   const { joinedNow, leftNow } = useCallPresence(userName ? undefined : presence);
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -300,6 +306,8 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
 
       {!ended && (frame.state === 'joined' || frame.state === 'ready') ? (
         <div className="ve-toolbar">
+          {frame.state === 'joined' ? <CallTimer startedAt={startedAt} /> : null}
+          <span className="ve-toolbar__spacer" />
           <button type="button" className={cx('ve-btn', classNames.button)} onClick={() => setTroubleOpen((o) => !o)} aria-expanded={troubleOpen}>
             {labels.troubleOpen}
           </button>

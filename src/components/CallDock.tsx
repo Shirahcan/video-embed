@@ -39,6 +39,8 @@ export interface DockedCall {
   /** The viewer may end the call for everyone (pair with `handlers.onEndForEveryone`). */
   host?: boolean;
   scheduledEnd?: string | null;
+  /** When the call started (its first join), for the running call clock. */
+  startedAt?: string | null;
   /** The viewer's action at the booked end (pair with `handlers.onEndCue`). */
   endCueLabel?: string | null;
   /** A backup meeting exists or may be made (pair with `handlers.switchToBackup`). */
@@ -98,6 +100,7 @@ function sameCall(a: DockedCall, b: DockedCall): boolean {
     (a.userName ?? null) === (b.userName ?? null) &&
     Boolean(a.host) === Boolean(b.host) &&
     (a.scheduledEnd ?? null) === (b.scheduledEnd ?? null) &&
+    (a.startedAt ?? null) === (b.startedAt ?? null) &&
     (a.endCueLabel ?? null) === (b.endCueLabel ?? null) &&
     Boolean(a.backup) === Boolean(b.backup) &&
     (a.backup?.url ?? null) === (b.backup?.url ?? null)
@@ -280,6 +283,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             onKnock={onKnock}
             onParticipantsChange={onParticipantsChange}
             scheduledEnd={call.scheduledEnd ?? null}
+            startedAt={call.startedAt ?? null}
             endCueAction={call.endCueLabel ? { label: call.endCueLabel, onSelect: onEndCue } : undefined}
             backup={call.backup ? { switchTo: switchToBackup, url: call.backup.url ?? null } : undefined}
             overlay={isMinimized ? null : overlay}

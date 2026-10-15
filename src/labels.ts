@@ -112,6 +112,11 @@ export interface VideoLabels {
   externalMissing: string;
   externalMissingDetail: string;
   callEndedByYouDetail: string;
+  /** The running call clock, for screen readers ("Call time 12:04"). */
+  callElapsed: (time: string) => string;
+  /** The call-over notice: where the person is being taken. */
+  callOverMoving: (destination: string) => string;
+  callOverGoNow: string;
   // Transcript retention (admin)
   retentionTitle: string;
   retentionIntro: string;
@@ -405,6 +410,9 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   externalMissing: 'No call link yet',
   externalMissingDetail: 'This meeting does not have a call link attached. Ask the host to add one.',
   callEndedByYouDetail: 'You ended the call for everyone.',
+  callElapsed: (time) => `Call time ${time}`,
+  callOverMoving: (destination) => `Taking you back to ${destination}...`,
+  callOverGoNow: 'Go now',
   retentionTitle: 'Call transcripts',
   retentionIntro: 'How long a call transcript is kept after the call. It is then deleted for good, here and on the video provider.',
   retentionDays: 'Delete transcripts after (days)',

@@ -66,6 +66,14 @@ describe('CallFrame', () => {
     expect(latest().names).toEqual(['Ana Ruiz']);
   });
 
+  it('shows the running call clock only once joined, from the shared start', async () => {
+    render(<CallFrame url="https://shirah.daily.co/room?t=A" startedAt={new Date(Date.now() - 125_000).toISOString()} />);
+    await waitFor(() => expect(latest().joins).toEqual(['https://shirah.daily.co/room?t=A']));
+    expect(screen.queryByRole('timer')).toBeNull();
+    act(() => latest().emit('joined-meeting'));
+    expect(screen.getByRole('timer').getAttribute('aria-label')).toBe('Call time 2:05');
+  });
+
   it('repairs an expired room once by itself and rejoins on the fresh URL', async () => {
     const fetchFreshUrl = vi.fn().mockResolvedValue('https://shirah.daily.co/room?t=NEW');
     const onFailure = vi.fn();

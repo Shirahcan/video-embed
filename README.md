@@ -62,3 +62,5 @@ size the stage with `--ve-stage-height`.
 | `classifyCallError`, `REPAIRABLE` | Daily's fatal error -> kind; which kinds a fresh join can fix |
 | `diagnoseMediaError`, `browserFamily` | getUserMedia error -> cause; which browser's steps to show |
 | `CallFrame`, `DeviceCheck`, `Troubleshooter`, `KnockBar`, `ProblemCard` | the themed screens |
+| `CallTimer` | the running call clock (elapsed since the call's shared `startedAt`, else this person's join); `CallFrame` draws it while joined. Daily Prebuilt has no timer of its own |
+| `useCallOverExit`, `CallOverNotice` | leaving a call that is over: a host who ended it goes straight to the product's `href` (the surface the call belongs to, else the meeting page); anyone it was ended for sees the notice, then goes. Waits for the scratchpad's save. Nothing asks "how did the call go" |
