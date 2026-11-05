@@ -181,6 +181,16 @@ export interface VideoLabels {
   /** A transcript a person supplied: who, when the product knows. */
   transcriptAddedBy: (who: string | null) => string;
   transcriptLength: (seconds: number) => string;
+  // A call's LIVE transcription and the way to start it (LiveTranscription)
+  liveTranscriptionRunningTitle: string;
+  liveTranscriptionRunningDetail: string;
+  liveTranscriptionStoppedTitle: string;
+  liveTranscriptionStoppedDetail: (presentCount: number) => string;
+  liveTranscriptionWaitingTitle: string;
+  liveTranscriptionWaitingDetail: string;
+  liveTranscriptionStart: string;
+  liveTranscriptionStarting: string;
+  liveTranscriptionAsked: string;
   // Who could not get into the call (JoinIssuesPanel)
   issuesHeading: string;
   issuesIntro: string;
@@ -493,6 +503,15 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   transcriptDownloadText: 'Download as text',
   transcriptCopied: 'Transcript copied',
   transcriptAddedBy: (who) => (who ? `Added by ${who}` : 'Added by hand'),
+  liveTranscriptionRunningTitle: 'Being transcribed',
+  liveTranscriptionRunningDetail: 'This call is being transcribed now.',
+  liveTranscriptionStoppedTitle: 'Not being transcribed',
+  liveTranscriptionStoppedDetail: (n) => `${n === 1 ? 'Someone is' : `${n} people are`} in the call and transcription has not started. Start it now, or nothing said from here on is recorded.`,
+  liveTranscriptionWaitingTitle: 'Transcription starts when someone joins',
+  liveTranscriptionWaitingDetail: 'Nobody is in the call yet. Transcription starts on its own as soon as anyone joins.',
+  liveTranscriptionStart: 'Start transcription',
+  liveTranscriptionStarting: 'Starting...',
+  liveTranscriptionAsked: 'Asked to start. It shows as being transcribed within a few seconds.',
   transcriptLength: (seconds) => {
     const minutes = Math.round(seconds / 60);
     return minutes < 1 ? 'under a minute' : `${minutes} min`;

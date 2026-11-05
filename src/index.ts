@@ -42,6 +42,8 @@ export type { TranscriptionNoticeProps } from './components/TranscriptionNotice'
 export { ProblemCard } from './components/ProblemCard';
 export { Troubleshooter } from './components/Troubleshooter';
 export { TranscriptStatus } from './components/TranscriptStatus';
+export { LiveTranscription } from './components/LiveTranscription';
+export type { LiveTranscriptionProps, LiveTranscriptionState } from './components/LiveTranscription';
 export { ActionMenu } from './components/ActionMenu';
 export type { ActionMenuItem } from './components/ActionMenu';
 export type { TranscriptState, TranscriptStatusProps } from './components/TranscriptStatus';
