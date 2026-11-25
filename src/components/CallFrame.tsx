@@ -141,6 +141,10 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
   const leaveRef = useRef<() => void>(() => {});
   // Leaving because the call moved to another device is not "you left": no host prompt follows it.
   const movedRef = useRef(false);
+  // Only someone who was IN the call can leave it. A join that failed (the room not open yet, a bad pass)
+  // also fires Daily's left-meeting, and asking that host "Is it over? End for everyone" hid the real reason
+  // and offered to end a call that had not started (local check 2026-11-25).
+  const inCallRef = useRef(false);
   const onPresenceAnswer = useCallback((answer: PresenceAnswer, kind: string) => {
     if (answer.superseded && kind === 'heartbeat') {
       movedRef.current = true;
@@ -269,6 +273,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     onJoined: () => {
       joinedNow(takeOverRef.current);
       takeOverRef.current = false;
+      inCallRef.current = true;
       setFirstJoinedAt((t) => t ?? Date.now());
       autoTried.current = false;
       setRecovery('idle');
@@ -277,7 +282,9 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     onLeft: () => {
       leftNow();
       // A host who leaves by the call's own Leave button is asked whether the call is over.
-      if (onEndForEveryone && !endedRef.current && !endingRef.current && !leavingAloneRef.current && !movedRef.current) setEndStep('left-host');
+      const wasInCall = inCallRef.current;
+      inCallRef.current = false;
+      if (onEndForEveryone && wasInCall && !endedRef.current && !endingRef.current && !leavingAloneRef.current && !movedRef.current) setEndStep('left-host');
       leavingAloneRef.current = false;
       onLeft?.();
     },

@@ -435,3 +435,19 @@ describe('CallFrame call continuity', () => {
     expect(presence).not.toHaveBeenCalledWith('check', expect.anything());
   });
 });
+
+describe('CallFrame leave prompt', () => {
+  beforeEach(() => {
+    frames.length = 0;
+    window.localStorage.clear();
+  });
+
+  it('never asks a host whether a call they never got into is over', async () => {
+    render(<CallFrame url="https://shirah.daily.co/room?t=E1" onEndForEveryone={async () => {}} />);
+    await waitFor(() => expect(latest().joins.length).toBe(1));
+    // The room is not open yet: Daily errors, then reports left-meeting.
+    act(() => latest().emit('error', { errorMsg: 'This room is not available yet, please try later', error: { type: 'nbf-room' } }));
+    act(() => latest().emit('left-meeting'));
+    expect(screen.queryByText('You left the call. Is it over?')).toBeNull();
+  });
+});
