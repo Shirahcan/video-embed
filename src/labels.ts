@@ -106,6 +106,14 @@ export interface VideoLabels {
   heldElsewhereTitle: string;
   heldElsewhereDetail: string;
   moveCallHere: string;
+  // Call continuity: the same person on another device (InCallElsewhere)
+  inCallElsewhereTitle: string;
+  inCallElsewhereDetail: (since: string | null) => string;
+  switchHere: string;
+  joinHereToo: string;
+  movedElsewhereTitle: string;
+  movedElsewhereDetail: string;
+  moveCallBackHere: string;
   // The call is transcribed (TranscriptionNotice): the host keeps the record, everyone else is told
   transcriptionNoticeHost: string;
   transcriptionNoticeAttendee: string;
@@ -420,6 +428,13 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   heldElsewhereTitle: 'You are already in this call in another tab',
   heldElsewhereDetail: 'Joining twice from one device makes both microphones live, which causes echo for everyone else. Switch back to the other tab, or move the call here.',
   moveCallHere: 'Move the call here',
+  inCallElsewhereTitle: "You're in this call on another device",
+  inCallElsewhereDetail: (since) => `${since ? `You joined at ${since} on another device. ` : ''}Switch the call here, or join here too with your microphone and camera off so there is no echo.`,
+  switchHere: 'Switch here',
+  joinHereToo: 'Join here too',
+  movedElsewhereTitle: 'You joined on another device',
+  movedElsewhereDetail: 'The call moved to your other device, so it left this one. You can move it back here.',
+  moveCallBackHere: 'Move the call back here',
   transcriptionNoticeHost: 'This call is transcribed, so you keep an accurate record of what was discussed. Everyone in the call sees this notice.',
   transcriptionNoticeAttendee: 'This call is transcribed so the host keeps an accurate record of what was discussed. Ask them if you have questions about it.',
   externalTitle: (platform) => `This call runs on ${platform}`,

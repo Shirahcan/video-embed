@@ -13,7 +13,10 @@ export type { CallParticipant, FrameState, UseDailyFrameOptions, UseDailyFrameRe
 export { useCallPresence } from './hooks/useCallPresence';
 export { useSingleTabCall } from './hooks/useSingleTabCall';
 export type { SingleTabCall } from './hooks/useSingleTabCall';
-export type { PresenceKind } from './hooks/useCallPresence';
+export type { PresenceAnswer, PresenceKind, PresenceOptions, PresenceSender } from './hooks/useCallPresence';
+export { presenceDeviceId } from './presenceDevice';
+export { InCallElsewhere } from './components/InCallElsewhere';
+export type { InCallElsewhereProps } from './components/InCallElsewhere';
 export { useMediaCheck } from './hooks/useMediaCheck';
 export type { CameraStatus, DeviceOption, MediaCheck, MicStatus, SpeakerStatus } from './hooks/useMediaCheck';
 export { CallFrame } from './components/CallFrame';

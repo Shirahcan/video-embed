@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { REPAIRABLE, type CallFailure, type CallFailureKind } from '../callErrors';
 import type { MediaDiagnosis } from '../diagnose';
-import { useCallPresence, type PresenceKind } from '../hooks/useCallPresence';
+import { useCallPresence, type PresenceAnswer, type PresenceSender } from '../hooks/useCallPresence';
+import { presenceDeviceId } from '../presenceDevice';
+import { InCallElsewhere } from './InCallElsewhere';
 import { useDailyFrame, type CallParticipant, type WaitingPerson } from '../hooks/useDailyFrame';
 import { useSingleTabCall } from '../hooks/useSingleTabCall';
 import { cx, useVideoUi } from '../theme';
@@ -56,7 +58,13 @@ export interface CallFrameProps {
    * (`userName`, a URL with no pass) never sends it: they are nobody the product knows, and
    * their presence must not read as an invited person attending.
    */
-  presence?: (kind: PresenceKind) => Promise<void>;
+  presence?: PresenceSender;
+  /**
+   * Call continuity (default off): presence carries a device id, so a person already in this call on
+   * another device is asked before joining ("Switch here" or "Join here too", muted), and a device the
+   * call was moved away from leaves it, saying so. Needs `presence`; never for a named guest.
+   */
+  continuity?: boolean;
   /**
    * One call per machine (default on): a second tab on the same call stands down and offers to
    * take it over, so two live microphones never echo in one room.
@@ -122,8 +130,46 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, overlay, aloneAfterMinutes = 15, singleTab = true, enabled = true, className, style }: CallFrameProps) {
-  const { joinedNow, leftNow } = useCallPresence(userName ? undefined : presence);
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, overlay, aloneAfterMinutes = 15, singleTab = true, continuity = false, enabled = true, className, style }: CallFrameProps) {
+  // Call continuity: one id per browser, and what to do about the person's other device.
+  const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
+  // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
+  const [continuityStep, setContinuityStep] = useState<'checking' | 'other' | 'clear' | 'moved'>(deviceId ? 'checking' : 'clear');
+  const [elsewhereSince, setElsewhereSince] = useState<string | null>(null);
+  const [joinQuiet, setJoinQuiet] = useState(false);
+  const takeOverRef = useRef(false);
+  const leaveRef = useRef<() => void>(() => {});
+  // Leaving because the call moved to another device is not "you left": no host prompt follows it.
+  const movedRef = useRef(false);
+  const onPresenceAnswer = useCallback((answer: PresenceAnswer, kind: string) => {
+    if (answer.superseded && kind === 'heartbeat') {
+      movedRef.current = true;
+      setContinuityStep('moved');
+      leaveRef.current();
+    }
+  }, []);
+  const { joinedNow, leftNow } = useCallPresence(userName ? undefined : presence, 60_000, deviceId, onPresenceAnswer);
+  useEffect(() => {
+    if (!deviceId || !presence) return undefined;
+    let live = true;
+    presence('check', { deviceId })
+      .then((answer) => {
+        if (!live) return;
+        if (answer && answer.elsewhere) {
+          setElsewhereSince(answer.elsewhere.since);
+          setContinuityStep('other');
+        } else {
+          setContinuityStep('clear');
+        }
+      })
+      // A failed check never blocks the call.
+      .catch(() => live && setContinuityStep('clear'));
+    return () => {
+      live = false;
+    };
+    // Asked once per page: a later answer arrives on the beats.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceId]);
   const { labels, classNames } = useVideoUi();
   const containerRef = useRef<HTMLDivElement>(null);
   const [joinUrl, setJoinUrl] = useState(url);
@@ -218,9 +264,11 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     containerRef,
     url: joinUrl,
     userName,
-    enabled: enabled && !tab.heldElsewhere,
+    enabled: enabled && !tab.heldElsewhere && continuityStep === 'clear',
+    startQuiet: joinQuiet,
     onJoined: () => {
-      joinedNow();
+      joinedNow(takeOverRef.current);
+      takeOverRef.current = false;
       setFirstJoinedAt((t) => t ?? Date.now());
       autoTried.current = false;
       setRecovery('idle');
@@ -229,7 +277,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     onLeft: () => {
       leftNow();
       // A host who leaves by the call's own Leave button is asked whether the call is over.
-      if (onEndForEveryone && !endedRef.current && !endingRef.current && !leavingAloneRef.current) setEndStep('left-host');
+      if (onEndForEveryone && !endedRef.current && !endingRef.current && !leavingAloneRef.current && !movedRef.current) setEndStep('left-host');
       leavingAloneRef.current = false;
       onLeft?.();
     },
@@ -244,7 +292,8 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
 
   useEffect(() => {
     rejoinRef.current = frame.rejoin;
-  }, [frame.rejoin]);
+    leaveRef.current = frame.leave;
+  }, [frame.rejoin, frame.leave]);
 
   // Alone = joined with nobody else in the call. The clock restarts whenever someone else is there.
   const alone = frame.state === 'joined' && frame.participantCount <= 1;
@@ -377,7 +426,26 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
           </div>
         ) : null}
 
-        {frame.state === 'loading' && !ended && !tab.heldElsewhere ? <div className="ve-overlay"><p>{labels.connecting}</p></div> : null}
+        {continuityStep === 'other' || continuityStep === 'moved' ? (
+          <InCallElsewhere
+            moved={continuityStep === 'moved'}
+            since={elsewhereSince}
+            onSwitchHere={() => {
+              takeOverRef.current = true;
+              movedRef.current = false;
+              setJoinQuiet(false);
+              const wasMoved = continuityStep === 'moved';
+              setContinuityStep('clear');
+              if (wasMoved) rejoinRef.current();
+            }}
+            onJoinHereToo={() => {
+              setJoinQuiet(true);
+              setContinuityStep('clear');
+            }}
+          />
+        ) : null}
+
+        {frame.state === 'loading' && !ended && !tab.heldElsewhere && continuityStep === 'clear' ? <div className="ve-overlay"><p>{labels.connecting}</p></div> : null}
 
         {endStep === 'confirm' || endStep === 'ending' || endStep === 'left-host' ? (
           <div className="ve-overlay ve-overlay--end" role="alertdialog" aria-labelledby="ve-end-title">

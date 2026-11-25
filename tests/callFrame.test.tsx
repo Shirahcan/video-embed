@@ -17,9 +17,11 @@ class FakeFrame {
   emit(event: string, payload?: unknown) {
     this.handlers.get(event)?.(payload);
   }
-  async join({ url, userName }: { url: string; userName?: string }) {
+  quiet: boolean[] = [];
+  async join({ url, userName, startAudioOff }: { url: string; userName?: string; startAudioOff?: boolean }) {
     this.joins.push(url);
     this.names.push(userName);
+    this.quiet.push(Boolean(startAudioOff));
   }
   left = 0;
   people: Record<string, unknown> = {};
@@ -374,5 +376,62 @@ describe('CallFrame', () => {
     );
     expect(screen.getByText(/so you keep an accurate record/)).toBeTruthy();
     expect(screen.getByText(/so the host keeps an accurate record/)).toBeTruthy();
+  });
+});
+
+describe('CallFrame call continuity', () => {
+  beforeEach(() => {
+    frames.length = 0;
+    window.localStorage.clear();
+  });
+
+  it('asks before joining when the person is already in on another device, and Switch here takes the call over', async () => {
+    const presence = vi.fn(async (kind: string) => (kind === 'check' ? { elsewhere: { since: '2026-11-25T15:02:00Z' }, superseded: false } : { elsewhere: null, superseded: false }));
+    render(<CallFrame url="https://shirah.daily.co/room?t=C1" presence={presence} continuity />);
+
+    await screen.findByText("You're in this call on another device");
+    expect(frames.length).toBe(0);
+    expect(presence.mock.calls[0]?.[1]).toEqual({ deviceId: expect.any(String) });
+
+    act(() => screen.getByText('Switch here').click());
+    await waitFor(() => expect(latest().joins).toEqual(['https://shirah.daily.co/room?t=C1']));
+    expect(latest().quiet).toEqual([false]);
+    act(() => latest().emit('joined-meeting'));
+    await waitFor(() => expect(presence).toHaveBeenCalledWith('join', { deviceId: expect.any(String), takeOver: true }));
+  });
+
+  it('Join here too joins with the microphone and camera off', async () => {
+    const presence = vi.fn(async (kind: string) => (kind === 'check' ? { elsewhere: { since: '2026-11-25T15:02:00Z' }, superseded: false } : {}));
+    render(<CallFrame url="https://shirah.daily.co/room?t=C2" presence={presence} continuity />);
+
+    await screen.findByText('Join here too');
+    act(() => screen.getByText('Join here too').click());
+    await waitFor(() => expect(latest().quiet).toEqual([true]));
+  });
+
+  it('leaves the call and says so when another device takes it over', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const presence = vi.fn(async (kind: string) => (kind === 'heartbeat' ? { elsewhere: null, superseded: true } : { elsewhere: null, superseded: false }));
+      render(<CallFrame url="https://shirah.daily.co/room?t=C3" presence={presence} continuity onEndForEveryone={async () => {}} />);
+      await waitFor(() => expect(latest().joins.length).toBe(1));
+      act(() => latest().emit('joined-meeting'));
+
+      await act(async () => {
+        vi.advanceTimersByTime(60_000 + 10);
+      });
+      await screen.findByText('You joined on another device');
+      expect(latest().left).toBe(1);
+      expect(screen.queryByText('Move the call back here')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('without continuity nothing is asked and presence is sent as before', async () => {
+    const presence = vi.fn().mockResolvedValue(undefined);
+    render(<CallFrame url="https://shirah.daily.co/room?t=C4" presence={presence} />);
+    await waitFor(() => expect(latest().joins.length).toBe(1));
+    expect(presence).not.toHaveBeenCalledWith('check', expect.anything());
   });
 });

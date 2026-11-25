@@ -50,6 +50,11 @@ export interface UseDailyFrameOptions {
   onKnock?: (person: WaitingPerson) => void;
   /** Who is in the call, on every join, leave and change (empty until this person joins). */
   onParticipantsChange?: (people: CallParticipant[]) => void;
+  /**
+   * Join with the microphone and camera off (call continuity: "Join here too" on a second device, so
+   * two live microphones of the same person never echo). Read at join time.
+   */
+  startQuiet?: boolean;
 }
 
 export interface UseDailyFrameResult {
@@ -100,6 +105,7 @@ export function useDailyFrame({
   onFailure,
   onKnock,
   onParticipantsChange,
+  startQuiet = false,
 }: UseDailyFrameOptions): UseDailyFrameResult {
   const [state, setState] = useState<FrameState>('idle');
   const [failure, setFailure] = useState<CallFailure | null>(null);
@@ -113,12 +119,14 @@ export function useDailyFrame({
   const handlersRef = useRef({ onJoined, onLeft, onDeviceError, onFailure, onKnock, onParticipantsChange });
   const urlRef = useRef(url);
   const nameRef = useRef(userName);
+  const quietRef = useRef(startQuiet);
 
   // Latest callbacks and URL without rebuilding the frame (a re-minted token must not).
   useLayoutEffect(() => {
     handlersRef.current = { onJoined, onLeft, onDeviceError, onFailure, onKnock, onParticipantsChange };
     urlRef.current = url;
     nameRef.current = userName;
+    quietRef.current = startQuiet;
   });
 
   const identity = roomIdentity(url);
@@ -234,7 +242,8 @@ export function useDailyFrame({
 
         const joinUrl = urlRef.current;
         if (!joinUrl) return;
-        await frame.join(nameRef.current ? { url: joinUrl, userName: nameRef.current } : { url: joinUrl });
+        const quiet = quietRef.current ? { startAudioOff: true, startVideoOff: true } : {};
+        await frame.join(nameRef.current ? { url: joinUrl, userName: nameRef.current, ...quiet } : { url: joinUrl, ...quiet });
       } catch (err) {
         // join() rejects for the same failure the `error` event already reported: once only.
         if (cancelled || reported) return;
