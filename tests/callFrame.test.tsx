@@ -386,7 +386,7 @@ describe('CallFrame call continuity', () => {
   });
 
   it('asks before joining when the person is already in on another device, and Switch here takes the call over', async () => {
-    const presence = vi.fn(async (kind: string) => (kind === 'check' ? { elsewhere: { since: '2026-11-25T15:02:00Z' }, superseded: false } : { elsewhere: null, superseded: false }));
+    const presence = vi.fn(async (kind: string, _options?: unknown) => (kind === 'check' ? { elsewhere: { since: '2026-11-25T15:02:00Z' }, superseded: false } : { elsewhere: null, superseded: false }));
     render(<CallFrame url="https://shirah.daily.co/room?t=C1" presence={presence} continuity />);
 
     await screen.findByText("You're in this call on another device");

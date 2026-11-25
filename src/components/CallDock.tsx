@@ -11,7 +11,7 @@ import {
 } from 'react';
 import type { CallFailure, CallFailureKind } from '../callErrors';
 import type { MediaDiagnosis } from '../diagnose';
-import type { PresenceKind } from '../hooks/useCallPresence';
+import type { PresenceKind, PresenceOptions, PresenceSender } from '../hooks/useCallPresence';
 import type { CallParticipant, WaitingPerson } from '../hooks/useDailyFrame';
 import { cx, useVideoUi } from '../theme';
 import { CallFrame, type RecoveryStatus } from './CallFrame';
@@ -45,6 +45,8 @@ export interface DockedCall {
   endCueLabel?: string | null;
   /** A backup meeting exists or may be made (pair with `handlers.switchToBackup`). */
   backup?: { url?: string | null } | null;
+  /** Call continuity: the person already in this call on another device is asked first (CallFrame `continuity`). */
+  continuity?: boolean;
 }
 
 /** The call's behaviour, from the page that owns it. Kept in a ref: changing them never touches the frame. */
@@ -53,7 +55,7 @@ export interface DockedCallHandlers {
   checkEnded?: () => Promise<boolean>;
   onEndForEveryone?: () => Promise<void>;
   onEnded?: (how: 'by-me' | 'ended') => void;
-  presence?: (kind: PresenceKind) => Promise<void>;
+  presence?: PresenceSender;
   onJoined?: () => void;
   onLeft?: () => void;
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
@@ -103,7 +105,8 @@ function sameCall(a: DockedCall, b: DockedCall): boolean {
     (a.startedAt ?? null) === (b.startedAt ?? null) &&
     (a.endCueLabel ?? null) === (b.endCueLabel ?? null) &&
     Boolean(a.backup) === Boolean(b.backup) &&
-    (a.backup?.url ?? null) === (b.backup?.url ?? null)
+    (a.backup?.url ?? null) === (b.backup?.url ?? null) &&
+    Boolean(a.continuity) === Boolean(b.continuity)
   );
 }
 
@@ -224,7 +227,11 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
   const checkEnded = useCallback(() => h.current.checkEnded?.() ?? Promise.resolve(false), [h]);
   const onEndForEveryone = useCallback(() => h.current.onEndForEveryone?.() ?? Promise.resolve(), [h]);
   const onEnded = useCallback((how: 'by-me' | 'ended') => h.current.onEnded?.(how), [h]);
-  const presence = useCallback((kind: PresenceKind) => h.current.presence?.(kind) ?? Promise.resolve(), [h]);
+  // The device options and the service's answer pass straight through (call continuity).
+  const presence = useCallback(
+    (kind: PresenceKind, options?: PresenceOptions) => (options ? h.current.presence?.(kind, options) : h.current.presence?.(kind)) ?? Promise.resolve(),
+    [h],
+  );
   const onJoined = useCallback(() => {
     setHasJoined(true);
     h.current.onJoined?.();
@@ -276,6 +283,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             onEndForEveryone={call.host ? onEndForEveryone : undefined}
             onEnded={onEnded}
             presence={presence}
+            continuity={Boolean(call.continuity)}
             onJoined={onJoined}
             onLeft={onLeft}
             onFailure={onFailure}

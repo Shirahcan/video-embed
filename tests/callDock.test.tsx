@@ -154,3 +154,22 @@ describe('CallDockProvider', () => {
     await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('none'));
   });
 });
+
+describe('CallDockProvider call continuity', () => {
+  beforeEach(() => {
+    frames.length = 0;
+    window.localStorage.clear();
+  });
+
+  it('passes the device options and the answer through, so a docked call asks before joining twice', async () => {
+    const presence = vi.fn(async (kind: string, _options?: unknown) => (kind === 'check' ? { elsewhere: { since: '2026-11-25T15:02:00Z' }, superseded: false } : {}));
+    render(
+      <CallDockProvider navigate={() => {}}>
+        <Room call={{ key: 'c9', url: 'https://x.daily.co/room?t=nine', returnHref: '/room', continuity: true }} handlers={{ presence }} />
+      </CallDockProvider>,
+    );
+    await screen.findByText("You're in this call on another device");
+    expect(presence).toHaveBeenCalledWith('check', { deviceId: expect.any(String) });
+    expect(frames).toHaveLength(0);
+  });
+});
