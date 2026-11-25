@@ -90,7 +90,8 @@ export function useCallDock(): CallDockValue {
 // Measure before paint in the browser, without React's server warning (the provider is at the root).
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
-const MINI = { width: 320, height: 180, margin: 20 };
+// 180 for the call plus 44 for the bar below it.
+const MINI = { width: 320, height: 224, margin: 20 };
 
 type Box = { top: number; left: number; width: number; height: number };
 
