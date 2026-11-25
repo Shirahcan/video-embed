@@ -69,6 +69,8 @@ export interface UseDailyFrameResult {
   setDevices: (devices: { audioDeviceId?: string; videoDeviceId?: string }) => void;
   /** Leave the call, as the call's own Leave button does. */
   leave: () => void;
+  /** Turn this person's own microphone on or off (the call dock's mute, while the call's own bar is hidden). */
+  setMic: (on: boolean) => void;
 }
 
 const READY_FAILSAFE_MS = 12_000;
@@ -282,5 +284,15 @@ export function useDailyFrame({
     if (frame) void frame.leave().catch(() => {});
   }, []);
 
-  return { state, failure, deviceError, participantCount, waiting, rejoin, setDevices, leave };
+  const setMic = useCallback((on: boolean) => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    try {
+      frame.setLocalAudio(on);
+    } catch {
+      /* torn down */
+    }
+  }, []);
+
+  return { state, failure, deviceError, participantCount, waiting, rejoin, setDevices, leave, setMic };
 }

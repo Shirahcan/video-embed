@@ -244,7 +244,14 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
   const onFailure = useCallback((f: CallFailure, r: RecoveryStatus) => h.current.onFailure?.(f, r), [h]);
   const onDeviceError = useCallback((d: MediaDiagnosis) => h.current.onDeviceError?.(d), [h]);
   const onKnock = useCallback((p: WaitingPerson) => h.current.onKnock?.(p), [h]);
-  const onParticipantsChange = useCallback((p: CallParticipant[]) => h.current.onParticipantsChange?.(p), [h]);
+  // The mini-player hides the call's own bar, so it carries its own mute, read from the call itself.
+  const micRef = useRef<((on: boolean) => void) | null>(null);
+  const [micOn, setMicOn] = useState<boolean | null>(null);
+  const onParticipantsChange = useCallback((p: CallParticipant[]) => {
+    const me = p.find((x) => x.local);
+    setMicOn(me ? me.audio : null);
+    h.current.onParticipantsChange?.(p);
+  }, [h]);
   const onEndCue = useCallback(() => h.current.onEndCue?.(), [h]);
   const switchToBackup = useCallback(() => {
     const fn = h.current.switchToBackup;
@@ -290,6 +297,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             onDeviceError={onDeviceError}
             onKnock={onKnock}
             onParticipantsChange={onParticipantsChange}
+            micRef={micRef}
             scheduledEnd={call.scheduledEnd ?? null}
             startedAt={call.startedAt ?? null}
             endCueAction={call.endCueLabel ? { label: call.endCueLabel, onSelect: onEndCue } : undefined}
@@ -301,7 +309,13 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
               <button type="button" className="ve-dock__btn" onClick={() => navigate(call.returnHref)}>
                 {labels.dockBack}
               </button>
-              <span />
+              {micOn !== null ? (
+                <button type="button" className="ve-dock__btn" aria-pressed={!micOn} onClick={() => micRef.current?.(!micOn)}>
+                  {micOn ? labels.dockMute : labels.dockUnmute}
+                </button>
+              ) : (
+                <span />
+              )}
               <button type="button" className="ve-dock__btn ve-dock__btn--leave" onClick={stop}>
                 {labels.dockLeave}
               </button>

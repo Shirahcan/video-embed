@@ -91,6 +91,8 @@ export interface CallFrameProps {
   startedAt?: string | null;
   /** Who is in the call (not the invited roster), on every join, leave and mute change. */
   onParticipantsChange?: (people: CallParticipant[]) => void;
+  /** Receives the call's own microphone switch once the frame exists (the call dock's mute button). */
+  micRef?: { current: ((on: boolean) => void) | null };
   /**
    * The product's own notices drawn INSIDE the call's stage, so they stay visible when the call
    * is fullscreen (a room-closing countdown outside the stage is seen by nobody then).
@@ -130,7 +132,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, overlay, aloneAfterMinutes = 15, singleTab = true, continuity = false, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, continuity = false, enabled = true, className, style }: CallFrameProps) {
   // Call continuity: one id per browser, and what to do about the person's other device.
   const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
   // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
@@ -296,6 +298,14 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     onKnock,
     onParticipantsChange,
   });
+  // The dock's mute button drives the same microphone the call's own bar does.
+  useEffect(() => {
+    if (!micRef) return;
+    micRef.current = frame.setMic;
+    return () => {
+      micRef.current = null;
+    };
+  }, [micRef, frame.setMic]);
 
   useEffect(() => {
     rejoinRef.current = frame.rejoin;

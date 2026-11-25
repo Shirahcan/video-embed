@@ -49,6 +49,8 @@ export interface VideoLabels {
   /** The call dock's mini-player, while the person is away from the call's page. */
   dockBack: string;
   dockLeave: string;
+  dockMute: string;
+  dockUnmute: string;
   dockRegion: string;
   prejoinPermissionHint: string;
   repairing: string;
@@ -378,6 +380,8 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   connecting: 'Connecting you to the call...',
   dockBack: 'Back to call',
   dockLeave: 'Leave',
+  dockMute: 'Mute',
+  dockUnmute: 'Unmute',
   dockRegion: 'Your call',
   prejoinPermissionHint: 'No Join button in the call? Your browser may be asking to use your camera and microphone (look near the address bar) - choose Allow.',
   repairing: 'Fixing the room...',

@@ -23,6 +23,10 @@ class FakeFrame {
     return this.people;
   }
   async setInputDevicesAsync() {}
+  audio: boolean[] = [];
+  setLocalAudio(on: boolean) {
+    this.audio.push(on);
+  }
 }
 
 const frames: FakeFrame[] = [];
@@ -112,6 +116,32 @@ describe('CallDockProvider', () => {
     expect(frames).toHaveLength(1);
     act(() => screen.getByText('Back to call').click());
     expect(navigate).toHaveBeenCalledWith('/room');
+  });
+
+  it('mutes and unmutes from the mini-player, reading the microphone from the call', async () => {
+    const call = { key: 'c9', url: 'https://x.daily.co/room?t=nine', returnHref: '/room' };
+    const { rerender } = render(
+      <CallDockProvider navigate={vi.fn()}>
+        <Room call={call} />
+      </CallDockProvider>,
+    );
+    await waitFor(() => expect(frames).toHaveLength(1));
+    latest().people = { local: { session_id: 's', user_name: 'Ada', local: true, audio: true, video: true } };
+    act(() => latest().emit('joined-meeting'));
+    rerender(
+      <CallDockProvider navigate={vi.fn()}>
+        <Room call={call} anchored={false} />
+      </CallDockProvider>,
+    );
+    await waitFor(() => expect(screen.getByText('Mute')).toBeTruthy());
+    act(() => screen.getByText('Mute').click());
+    expect(latest().audio).toEqual([false]);
+
+    // The call reports the microphone off: the button offers to turn it back on.
+    latest().people = { local: { session_id: 's', user_name: 'Ada', local: true, audio: false, video: true } };
+    act(() => latest().emit('participant-updated'));
+    act(() => screen.getByText('Unmute').click());
+    expect(latest().audio).toEqual([false, true]);
   });
 
   it('never parks a call nobody joined', async () => {
