@@ -395,3 +395,6 @@
 .ve-switch--on { background: var(--ve-accent); }
 .ve-switch--on::after { transform: translateX(14px); }
 @media (prefers-reduced-motion: reduce) { .ve-switch, .ve-switch::after { transition: none; } }
+
+/* "Mirror my video" off: the join preview shows the true image too. */
+.ve-preview.ve-preview--true { transform: none; }

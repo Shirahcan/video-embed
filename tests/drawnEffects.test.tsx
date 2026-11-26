@@ -67,6 +67,14 @@ beforeAll(() => {
     observe() {}
     disconnect() {}
   };
+  // jsdom has no MediaStream: a tile with live video wraps its track in one.
+  (globalThis as unknown as { MediaStream: unknown }).MediaStream ??= class {
+    constructor(private tracks: unknown[] = []) {}
+    getTracks() {
+      return this.tracks;
+    }
+  };
+  HTMLMediaElement.prototype.play = () => Promise.resolve();
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getDisplayMedia: () => Promise.resolve(null) } });
 });
 afterEach(() => {
@@ -136,6 +144,30 @@ describe('effects on the drawn screen', () => {
     EffectsCall.support = { supportsScreenShare: true, supportsAudioProcessing: false, supportsVideoProcessing: false };
     stage(new EffectsCall());
     fireEvent.click(screen.getByRole('button', { name: 'More options' }));
-    expect(screen.queryByRole('menuitemcheckbox')).toBeNull();
+    expect(screen.queryByRole('menuitemcheckbox', { name: /noise|blur/i })).toBeNull();
+  });
+});
+
+describe('your own video on the drawn screen', () => {
+  it('is mirrored by default, and "Mirror my video" shows the true image, remembered on this device', () => {
+    window.localStorage.removeItem('ve_mirror_self');
+    const call = new EffectsCall();
+    (call as unknown as { participants: () => unknown }).participants = () => ({
+      local: { session_id: 'me', user_name: 'Ada', local: true, tracks: { video: { state: 'playable', persistentTrack: { id: 'v', kind: 'video' } } } },
+      m: { session_id: 'm', user_name: 'Maria', local: false, tracks: {} },
+    });
+    const { container } = stage(call);
+    const selfTile = () => container.querySelector('[data-person="me"]');
+    expect(selfTile()?.className).toContain('ve-tile--mirror');
+
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }));
+    const mirror = screen.getByRole('menuitemcheckbox', { name: /Mirror my video/ });
+    expect(mirror.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(mirror);
+    expect(selfTile()?.className).not.toContain('ve-tile--mirror');
+    expect(window.localStorage.getItem('ve_mirror_self')).toBe('off');
+    // The other person is never flipped.
+    expect(container.querySelector('[data-person="m"]')?.className).not.toContain('ve-tile--mirror');
+    window.localStorage.removeItem('ve_mirror_self');
   });
 });

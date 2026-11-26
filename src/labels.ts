@@ -173,6 +173,8 @@ export interface VideoLabels {
   drawnBlur: string;
   drawnBlurDetail: string;
   drawnEffectFailed: (effect: 'noise' | 'blur') => string;
+  drawnMirror: string;
+  drawnMirrorDetail: string;
   heldElsewhereDetail: string;
   moveCallHere: string;
   // Call continuity: the same person on another device (InCallElsewhere)
@@ -552,6 +554,8 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnBlurDetail: 'Keeps you sharp and softens the room behind you.',
   drawnEffectFailed: (effect) =>
     effect === 'noise' ? 'Background noise could not be reduced in this browser.' : 'Your background could not be blurred in this browser.',
+  drawnMirror: 'Mirror my video',
+  drawnMirrorDetail: 'Only changes your own view. Others always see you the right way round.',
   drawnDeviceFailed: (label, kept) => `${label || 'That device'} would not start (another app may be using it)${kept ? `, so the call kept ${kept}` : ''}.`,
   heldElsewhereDetail: 'Joining twice from one device makes both microphones live, which causes echo for everyone else. Switch back to the other tab, or move the call here.',
   moveCallHere: 'Move the call here',

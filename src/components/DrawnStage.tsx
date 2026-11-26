@@ -1,8 +1,9 @@
 import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
-import { BlurIcon, CameraIcon, CameraOffIcon, ChatIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, NoiseIcon, PresentIcon, StandardScreenIcon } from './icons';
+import { BlurIcon, MirrorIcon, CameraIcon, CameraOffIcon, ChatIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, NoiseIcon, PresentIcon, StandardScreenIcon } from './icons';
 import { PRESENT_OPTIONS, useDrawnEffects } from '../drawnEffects';
+import { prefersMirroredSelf, setMirroredSelf } from '../callScreen';
 import { DrawnChatPanel } from './DrawnChatPanel';
 import { useDrawnChat } from '../drawnChat';
 import { useDrawnNetwork } from '../drawnNetwork';
@@ -74,6 +75,11 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
   const [chatOpen, setChatOpen] = useState(false);
   const connection = useDrawnNetwork(call);
   const effects = useDrawnEffects(call);
+  const [mirror, setMirror] = useState(prefersMirroredSelf);
+  const toggleMirror = () => {
+    setMirroredSelf(!mirror);
+    setMirror(!mirror);
+  };
   // The weak-connection offer is answered once per drop; a good spell lets it come back.
   const [weakDismissed, setWeakDismissed] = useState(false);
   const [lastConnection, setLastConnection] = useState(connection);
@@ -198,7 +204,7 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
           <ShareTile track={presenter.screen} label={labels.drawnPresenting(presenter.name || '?')} />
           <div className="ve-drawn__strip">
             {people.map((p) => (
-              <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} speaking={ringFor(p)} variant="strip" />
+              <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} speaking={ringFor(p)} variant="strip" mirror={mirror} />
             ))}
           </div>
         </div>
@@ -212,11 +218,11 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
         >
           {layout === 'waiting' ? <p className="ve-drawn__waiting">{labels.drawnWaiting}</p> : null}
           {tiles.map((p) => (
-            <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} speaking={ringFor(p)} />
+            <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} speaking={ringFor(p)} mirror={mirror} />
           ))}
         </div>
       )}
-      {self && layout === 'focus' ? <Tile person={self} label={labels.drawnYou} mutedLabel={labels.drawnMuted} speaking={ringFor(self)} variant="self" /> : null}
+      {self && layout === 'focus' ? <Tile person={self} label={labels.drawnYou} mutedLabel={labels.drawnMuted} speaking={ringFor(self)} variant="self" mirror={mirror} /> : null}
 
       <div className="ve-drawn__sound" hidden ref={soundRef}>
         {others.map((p) => <Sound key={p.id} track={p.audio} sinkId={devices.speakerId} onBlocked={() => setSoundBlocked(true)} />)}
@@ -359,7 +365,15 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
                   <span className={cx('ve-switch', effects.blur && 've-switch--on')} aria-hidden="true" />
                 </button>
               ) : null}
-              {effects.support.noise || effects.support.blur ? <span className="ve-drawn__menu-sep" role="separator" /> : null}
+              <button type="button" role="menuitemcheckbox" aria-checked={mirror} className="ve-drawn__menu-item" onClick={toggleMirror}>
+                <span className="ve-drawn__menu-icon"><MirrorIcon /></span>
+                <span className="ve-drawn__menu-text">
+                  <span className="ve-drawn__menu-title">{labels.drawnMirror}</span>
+                  <span className="ve-drawn__menu-detail">{labels.drawnMirrorDetail}</span>
+                </span>
+                <span className={cx('ve-switch', mirror && 've-switch--on')} aria-hidden="true" />
+              </button>
+              <span className="ve-drawn__menu-sep" role="separator" />
               <button
                 type="button"
                 role="menuitem"

@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMediaCheck, type DeviceOption } from '../hooks/useMediaCheck';
 import { cx, useVideoUi } from '../theme';
+import { prefersMirroredSelf } from '../callScreen';
 import { ProblemCard } from './ProblemCard';
 
 export interface DeviceCheckProps {
@@ -30,7 +31,8 @@ function Preview({ stream }: { stream: MediaStream | null }) {
   useEffect(() => {
     if (ref.current) ref.current.srcObject = stream;
   }, [stream]);
-  return <video ref={ref} className="ve-preview" autoPlay muted playsInline aria-hidden="true" />;
+  const [mirrored] = useState(prefersMirroredSelf);
+  return <video ref={ref} className={cx('ve-preview', !mirrored && 've-preview--true')} autoPlay muted playsInline aria-hidden="true" />;
 }
 
 /**

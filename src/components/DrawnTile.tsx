@@ -32,8 +32,10 @@ function initialsOf(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 }
 
-export function Tile({ person, label, mutedLabel, speaking = false, variant = 'stage' }: {
+export function Tile({ person, label, mutedLabel, speaking = false, variant = 'stage', mirror = true }: {
   person: DrawnPerson;
+  /** Show the viewer's own video as in a mirror (their choice; others never see it flipped). */
+  mirror?: boolean;
   label: string;
   mutedLabel: string;
   speaking?: boolean;
@@ -44,7 +46,7 @@ export function Tile({ person, label, mutedLabel, speaking = false, variant = 's
   const ref = useMediaTrack(showVideo ? person.video : null);
   return (
     <div
-      className={cx('ve-tile', variant === 'self' && 've-tile--self', variant === 'strip' && 've-tile--strip', speaking && 've-tile--speaking', person.local && 've-tile--mirror')}
+      className={cx('ve-tile', variant === 'self' && 've-tile--self', variant === 'strip' && 've-tile--strip', speaking && 've-tile--speaking', person.local && mirror && 've-tile--mirror')}
       data-person={person.id}
     >
       <video ref={ref} className="ve-tile__video" autoPlay playsInline muted hidden={!showVideo} />

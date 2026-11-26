@@ -170,3 +170,13 @@ export function BlurIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function MirrorIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 3v18" strokeDasharray="2 2.5" />
+      <path d="M9 7 4 12l5 5V7z" />
+      <path d="M15 7l5 5-5 5V7z" />
+    </Icon>
+  );
+}

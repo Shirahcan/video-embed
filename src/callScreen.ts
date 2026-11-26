@@ -34,6 +34,29 @@ export function preferStandardScreen(): void {
   }
 }
 
+/**
+ * Your own video is shown as in a mirror by default (as Meet, Zoom, Teams and Daily do); everyone
+ * else always sees you the right way round. "Mirror my video" turns it off, remembered per device.
+ */
+export const MIRROR_SELF_KEY = 've_mirror_self';
+
+export function prefersMirroredSelf(): boolean {
+  try {
+    return storage()?.getItem(MIRROR_SELF_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function setMirroredSelf(on: boolean): void {
+  try {
+    if (on) storage()?.removeItem(MIRROR_SELF_KEY);
+    else storage()?.setItem(MIRROR_SELF_KEY, 'off');
+  } catch {
+    /* blocked: the choice lasts for this call only */
+  }
+}
+
 /** Forget the choice (the drawn screen is offered again where the device allows it). */
 export function clearStandardScreenPreference(): void {
   try {
