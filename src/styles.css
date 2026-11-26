@@ -312,6 +312,30 @@
 .ve-drawn__menu-title { font-size: 14px; font-weight: 600; }
 .ve-drawn__menu-detail { font-size: 12px; color: var(--ve-ink-muted); line-height: 1.4; }
 
+/* P2c: the device arrow on Mute / Stop video (Meet's pattern): a small disc on the control's
+   top-right edge, its own button, so the control itself still mutes in one click. */
+.ve-ctl-group { position: relative; }
+.ve-ctl-caret { position: absolute; top: -4px; right: 0; width: 22px; height: 22px; padding: 0; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid var(--ve-stage); background: var(--ve-control); color: var(--ve-control-label); cursor: pointer; outline: none; z-index: 1; }
+.ve-ctl-caret:hover, .ve-ctl-caret[aria-expanded="true"] { background: var(--ve-control-hover); }
+.ve-ctl-caret:focus-visible { box-shadow: 0 0 0 2px var(--ve-accent); }
+.ve-devices { width: 320px; max-height: min(60vh, 420px); overflow-y: auto; }
+.ve-devices__section { display: flex; flex-direction: column; }
+.ve-devices__section + .ve-devices__section { margin-top: 4px; padding-top: 4px; border-top: 1px solid color-mix(in srgb, var(--ve-ink-muted) 20%, transparent); }
+.ve-devices__heading { padding: 8px 12px 4px; font-size: 12px; font-weight: 600; color: var(--ve-ink-muted); }
+.ve-devices__item { align-items: center; padding: 8px 12px; }
+.ve-devices__check { width: 16px; flex: none; display: inline-flex; color: var(--ve-accent); }
+.ve-devices__name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ve-devices__item--on .ve-devices__name { font-weight: 600; }
+
+/* What the drawn screen tells the person: a device problem, sound held back, a device that changed. */
+.ve-drawn__notices { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(92%, 560px); }
+.ve-drawn__notice { display: flex; align-items: center; gap: 12px; margin: 0; padding: 8px 8px 8px 16px; border-radius: var(--ve-radius-pill); background: var(--ve-glass); border: 1px solid var(--ve-glass-border);
+  color: var(--ve-control-label); font-size: 13px; line-height: 1.4; backdrop-filter: blur(12px); box-shadow: 0 8px 24px rgb(0 0 0 / 0.3); }
+.ve-drawn__notice--warn { border-color: color-mix(in srgb, var(--ve-danger) 55%, transparent); }
+.ve-drawn__notice-btn { flex: none; padding: 6px 14px; border: 0; border-radius: var(--ve-radius-pill); background: #fff; color: #0f172a; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; outline: none; }
+.ve-drawn__notice-btn:focus-visible { box-shadow: 0 0 0 3px var(--ve-accent); }
+
 /* A short or narrow stage: smaller controls, labels kept. */
 @container (max-width: 520px) { .ve-drawn__bar { gap: 8px; padding: 8px 10px 6px; } .ve-ctl { min-width: 44px; } }
 @media (max-height: 640px) { .ve-drawn { --ve-control-size: 40px; } .ve-tile--self { bottom: 92px; } }

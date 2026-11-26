@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { MediaDiagnosis } from '../diagnose';
 import { cx, useVideoUi } from '../theme';
 import { ProblemCard } from './ProblemCard';
+import { devicesOfKind } from '../drawnDevices';
 
 interface Options {
   microphones: MediaDeviceInfo[];
@@ -28,10 +29,12 @@ export function Troubleshooter({ open, onClose, diagnosis, setDevices, rejoin, c
     let live = true;
     void navigator.mediaDevices.enumerateDevices().then((list) => {
       if (!live) return;
-      setOptions({
-        microphones: list.filter((d) => d.kind === 'audioinput' && d.deviceId),
-        cameras: list.filter((d) => d.kind === 'videoinput' && d.deviceId),
-      });
+      // The real devices only: Chrome also lists "Default - X" and "Communications - X" copies.
+      const real = (kind: MediaDeviceKind) => {
+        const ids = new Set(devicesOfKind(list, kind, '').map((d) => d.id));
+        return list.filter((d) => d.kind === kind && ids.has(d.deviceId));
+      };
+      setOptions({ microphones: real('audioinput'), cameras: real('videoinput') });
     }).catch(() => {});
     return () => {
       live = false;

@@ -84,3 +84,29 @@ export function StandardScreenIcon() {
     </Icon>
   );
 }
+
+export function ChevronUpIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="m6 15 6-6 6 6" />
+    </Icon>
+  );
+}
+
+export function CheckIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M20 6 9 17l-5-5" />
+    </Icon>
+  );
+}
+
+export function SpeakerIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M11 5 6 9H2v6h4l5 4V5z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M19 5a10 10 0 0 1 0 14" />
+    </Icon>
+  );
+}

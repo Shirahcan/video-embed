@@ -4,6 +4,8 @@ import { cx, useVideoUi } from '../theme';
 import { CameraIcon, CameraOffIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, StandardScreenIcon } from './icons';
 import { chooseDrawnLayout, drawnPeople, fitTiles, presenterOf, receiveLayers, type DrawnPerson } from '../drawnLayout';
 import { ShareTile, Sound, Tile } from './DrawnTile';
+import { DrawnDeviceMenu } from './DrawnDeviceMenu';
+import { useDrawnDevices } from '../drawnDevices';
 
 export { drawnPeople, type DrawnPerson };
 
@@ -50,10 +52,30 @@ export interface DrawnStageProps {
   onLeave: () => void;
   /** Switch this device to Daily Prebuilt. */
   onUseStandard: () => void;
+  /**
+   * Switch microphone / camera (the frame's setDevices). A blocked or busy device is said ABOVE the
+   * call by CallFrame, with "Having trouble?"; the stage does not repeat it.
+   */
+  setDevices?: (devices: { audioDeviceId?: string; videoDeviceId?: string }) => void;
 }
 
-export function DrawnStage({ call, onLeave, onUseStandard }: DrawnStageProps) {
+export function DrawnStage({ call, onLeave, onUseStandard, setDevices }: DrawnStageProps) {
   const { labels } = useVideoUi();
+  const devices = useDrawnDevices(call, { microphone: labels.microphone, camera: labels.camera, speaker: labels.speaker }, setDevices);
+  // The browser refused to play the call's sound (no click on the page yet): one button fixes it.
+  const [soundBlocked, setSoundBlocked] = useState(false);
+  const soundRef = useRef<HTMLDivElement>(null);
+  const hearCall = () => {
+    const els = [...(soundRef.current?.querySelectorAll('audio') ?? [])];
+    void Promise.all(els.map((el) => el.play())).then(() => setSoundBlocked(false), () => {});
+  };
+  // A device change the person did not make is said for a few seconds, then goes.
+  const { notice, dismissNotice } = devices;
+  useEffect(() => {
+    if (!notice) return undefined;
+    const t = setTimeout(dismissNotice, 6000);
+    return () => clearTimeout(t);
+  }, [notice, dismissNotice]);
   const [people, setPeople] = useState<DrawnPerson[]>(() => drawnPeople(call.participants() as Record<string, DailyParticipant>));
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLSpanElement>(null);
@@ -168,27 +190,61 @@ export function DrawnStage({ call, onLeave, onUseStandard }: DrawnStageProps) {
       )}
       {self && layout === 'focus' ? <Tile person={self} label={labels.drawnYou} mutedLabel={labels.drawnMuted} speaking={ringFor(self)} variant="self" /> : null}
 
-      <div className="ve-drawn__sound" hidden>
-        {others.map((p) => <Sound key={p.id} track={p.audio} />)}
+      <div className="ve-drawn__sound" hidden ref={soundRef}>
+        {others.map((p) => <Sound key={p.id} track={p.audio} sinkId={devices.speakerId} onBlocked={() => setSoundBlocked(true)} />)}
       </div>
 
+      {soundBlocked || notice ? (
+        <div className="ve-drawn__notices">
+          {soundBlocked ? (
+            <p className="ve-drawn__notice ve-drawn__notice--warn" role="alert">
+              <span>{labels.drawnSoundBlocked}</span>
+              <button type="button" className="ve-drawn__notice-btn" onClick={hearCall}>{labels.drawnHearCall}</button>
+            </p>
+          ) : null}
+          {notice ? (
+            <p className="ve-drawn__notice" role="status">
+              <span>{notice.failed ? labels.drawnDeviceFailed(notice.label ?? '', notice.kept ?? null) : labels.drawnDeviceSwitched(notice.kind, notice.label)}</span>
+              <button type="button" className="ve-drawn__notice-btn" onClick={dismissNotice}>{labels.drawnDismiss}</button>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="ve-drawn__bar" role="toolbar" aria-label={labels.drawnControls}>
-        <Control
-          label={micOff ? labels.drawnUnmute : labels.drawnMute}
-          ariaLabel={micOff ? labels.drawnUnmute : labels.drawnMute}
-          pressed={micOff}
-          off={micOff}
-          onClick={() => call.setLocalAudio(micOff)}
-          icon={micOff ? <MicOffIcon /> : <MicIcon />}
-        />
-        <Control
-          label={camOff ? labels.drawnVideoStart : labels.drawnVideoStop}
-          ariaLabel={camOff ? labels.drawnCameraOn : labels.drawnCameraOff}
-          pressed={camOff}
-          off={camOff}
-          onClick={() => call.setLocalVideo(camOff)}
-          icon={camOff ? <CameraOffIcon /> : <CameraIcon />}
-        />
+        <DrawnDeviceMenu
+          label={labels.drawnMicSettings}
+          onChoose={devices.choose}
+          sections={[
+            { kind: 'microphone', heading: labels.microphone, choices: devices.microphones, selected: devices.micId },
+            ...(devices.canChooseSpeaker
+              ? [{ kind: 'speaker' as const, heading: labels.speaker, choices: [{ id: '', label: labels.drawnDefaultDevice }, ...devices.speakers], selected: devices.speakerId }]
+              : []),
+          ]}
+        >
+          <Control
+            label={micOff ? labels.drawnUnmute : labels.drawnMute}
+            ariaLabel={micOff ? labels.drawnUnmute : labels.drawnMute}
+            pressed={micOff}
+            off={micOff}
+            onClick={() => call.setLocalAudio(micOff)}
+            icon={micOff ? <MicOffIcon /> : <MicIcon />}
+          />
+        </DrawnDeviceMenu>
+        <DrawnDeviceMenu
+          label={labels.drawnCameraSettings}
+          onChoose={devices.choose}
+          sections={[{ kind: 'camera', heading: labels.camera, choices: devices.cameras, selected: devices.cameraId }]}
+        >
+          <Control
+            label={camOff ? labels.drawnVideoStart : labels.drawnVideoStop}
+            ariaLabel={camOff ? labels.drawnCameraOn : labels.drawnCameraOff}
+            pressed={camOff}
+            off={camOff}
+            onClick={() => call.setLocalVideo(camOff)}
+            icon={camOff ? <CameraOffIcon /> : <CameraIcon />}
+          />
+        </DrawnDeviceMenu>
         <span className="ve-drawn__menu" ref={menuRef}>
           <Control
             label={labels.drawnMoreShort}

@@ -128,6 +128,17 @@ export interface VideoLabels {
   drawnPresenting: (name: string) => string;
   /** The drawn screen has no Join button: the call starts once the browser's camera / microphone prompt is answered. */
   drawnPermissionHint: string;
+  /** P2c: the arrows on Mute / Stop video, and what the drawn screen says about devices. */
+  drawnMicSettings: string;
+  drawnCameraSettings: string;
+  drawnDefaultDevice: string;
+  /** `label` null = the device was pulled out and the call fell back to the system default. */
+  drawnDeviceSwitched: (kind: 'microphone' | 'camera' | 'speaker', label: string | null) => string;
+  /** A chosen device would not start; the call kept the one it had. */
+  drawnDeviceFailed: (label: string, kept: string | null) => string;
+  drawnSoundBlocked: string;
+  drawnHearCall: string;
+  drawnDismiss: string;
   heldElsewhereDetail: string;
   moveCallHere: string;
   // Call continuity: the same person on another device (InCallElsewhere)
@@ -471,6 +482,14 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnMoreShort: 'More',
   drawnPresenting: (name) => `${name} is presenting`,
   drawnPermissionHint: 'Your browser is asking to use your camera and microphone (look near the address bar). Choose Allow and you join the call.',
+  drawnMicSettings: 'Microphone and speaker',
+  drawnCameraSettings: 'Camera',
+  drawnDefaultDevice: 'System default',
+  drawnDeviceSwitched: (kind, label) => (label ? `Your ${kind} is now ${label}.` : `Your ${kind} was unplugged, so the call is using the system default.`),
+  drawnSoundBlocked: 'Your browser is holding back the call sound until you click on the page.',
+  drawnHearCall: 'Hear the call',
+  drawnDismiss: 'Dismiss',
+  drawnDeviceFailed: (label, kept) => `${label || 'That device'} would not start (another app may be using it)${kept ? `, so the call kept ${kept}` : ''}.`,
   heldElsewhereDetail: 'Joining twice from one device makes both microphones live, which causes echo for everyone else. Switch back to the other tab, or move the call here.',
   moveCallHere: 'Move the call here',
   inCallElsewhereTitle: "You're in this call on another device",

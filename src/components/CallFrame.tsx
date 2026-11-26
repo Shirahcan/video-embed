@@ -506,6 +506,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
             <DrawnStage
               call={frame.call}
               onLeave={frame.leave}
+              setDevices={frame.setDevices}
               onUseStandard={() => {
                 preferStandardScreen();
                 fallBackToPrebuilt();
