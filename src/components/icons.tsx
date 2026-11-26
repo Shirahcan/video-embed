@@ -136,3 +136,37 @@ export function SendIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function PresentIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="2" y="4" width="20" height="13" rx="2" />
+      <path d="M12 13V8" />
+      <path d="m9.5 10.5 2.5-2.5 2.5 2.5" />
+      <path d="M8 21h8" />
+    </Icon>
+  );
+}
+
+export function NoiseIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M2 12h2" />
+      <path d="M6 8v8" />
+      <path d="M10 5v14" />
+      <path d="M14 9v6" />
+      <path d="M18 11v2" />
+      <path d="M22 12h-2" />
+    </Icon>
+  );
+}
+
+export function BlurIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="9" r="3.5" />
+      <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M2.5 4.5v.01M2.5 9v.01M2.5 13.5v.01M21.5 4.5v.01M21.5 9v.01M21.5 13.5v.01" />
+    </Icon>
+  );
+}

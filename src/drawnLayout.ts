@@ -13,6 +13,8 @@ export interface DrawnPerson {
   audio: MediaStreamTrack | null;
   /** Their shared screen, when they are presenting. */
   screen: MediaStreamTrack | null;
+  /** The sound of the tab they are presenting, when they shared it. */
+  screenAudio?: MediaStreamTrack | null;
   audioOn: boolean;
   videoOn: boolean;
 }
@@ -28,7 +30,7 @@ function playable(track: RawTrack | undefined): MediaStreamTrack | null {
 export function drawnPeople(raw: Record<string, DailyParticipant> | null | undefined): DrawnPerson[] {
   if (!raw) return [];
   const people = Object.values(raw).map((p) => {
-    const tracks = (p as unknown as { tracks?: { audio?: RawTrack; video?: RawTrack; screenVideo?: RawTrack } }).tracks;
+    const tracks = (p as unknown as { tracks?: { audio?: RawTrack; video?: RawTrack; screenVideo?: RawTrack; screenAudio?: RawTrack } }).tracks;
     return {
       id: p.session_id,
       name: (p.user_name ?? '').trim(),
@@ -36,6 +38,7 @@ export function drawnPeople(raw: Record<string, DailyParticipant> | null | undef
       video: playable(tracks?.video),
       audio: playable(tracks?.audio),
       screen: playable(tracks?.screenVideo),
+      screenAudio: playable(tracks?.screenAudio),
       audioOn: tracks?.audio?.state !== 'off' && tracks?.audio?.state !== 'blocked',
       videoOn: tracks?.video?.state !== 'off' && tracks?.video?.state !== 'blocked',
     };

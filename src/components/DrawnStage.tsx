@@ -1,7 +1,8 @@
 import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
-import { CameraIcon, CameraOffIcon, ChatIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, StandardScreenIcon } from './icons';
+import { BlurIcon, CameraIcon, CameraOffIcon, ChatIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, NoiseIcon, PresentIcon, StandardScreenIcon } from './icons';
+import { PRESENT_OPTIONS, useDrawnEffects } from '../drawnEffects';
 import { DrawnChatPanel } from './DrawnChatPanel';
 import { useDrawnChat } from '../drawnChat';
 import { useDrawnNetwork } from '../drawnNetwork';
@@ -72,6 +73,7 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
   const [soundBlocked, setSoundBlocked] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const connection = useDrawnNetwork(call);
+  const effects = useDrawnEffects(call);
   // The weak-connection offer is answered once per drop; a good spell lets it come back.
   const [weakDismissed, setWeakDismissed] = useState(false);
   const [lastConnection, setLastConnection] = useState(connection);
@@ -156,6 +158,16 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
   const chat = useDrawnChat(call, self?.name ?? '', chatOpen);
   const micOff = self ? !self.audioOn : false;
   const camOff = self ? !self.videoOn : false;
+  // You are presenting when your own screen track is live; you never see it back (no mirror tunnel).
+  const presenting = Boolean(self?.screen);
+  const togglePresent = () => {
+    try {
+      if (presenting) call.stopScreenShare();
+      else call.startScreenShare(PRESENT_OPTIONS as never);
+    } catch {
+      /* not in the call any more */
+    }
+  };
   const layout = chooseDrawnLayout(people);
   const presenter = presenterOf(people);
   // Meet's tiles: with one other person they are large and you float in the corner; alone you see
@@ -208,6 +220,7 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
 
       <div className="ve-drawn__sound" hidden ref={soundRef}>
         {others.map((p) => <Sound key={p.id} track={p.audio} sinkId={devices.speakerId} onBlocked={() => setSoundBlocked(true)} />)}
+        {others.filter((p) => p.screenAudio).map((p) => <Sound key={`${p.id}-screen`} track={p.screenAudio ?? null} sinkId={devices.speakerId} onBlocked={() => setSoundBlocked(true)} />)}
       </div>
 
       {access === 'asking' || access === 'denied' ? (
@@ -218,8 +231,21 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
         </div>
       ) : null}
 
-      {soundBlocked || notice || connection !== 'ok' ? (
+      {soundBlocked || notice || connection !== 'ok' || presenting || effects.failed ? (
         <div className="ve-drawn__notices">
+          {presenting ? (
+            <p className="ve-drawn__notice ve-drawn__notice--present" role="status">
+              <PresentIcon width={16} height={16} />
+              <span>{labels.drawnPresentingYou}</span>
+              <button type="button" className="ve-drawn__notice-btn" onClick={togglePresent}>{labels.drawnPresentStop}</button>
+            </p>
+          ) : null}
+          {effects.failed ? (
+            <p className="ve-drawn__notice" role="status">
+              <span>{labels.drawnEffectFailed(effects.failed)}</span>
+              <button type="button" className="ve-drawn__notice-btn" onClick={effects.dismissFailed}>{labels.drawnDismiss}</button>
+            </p>
+          ) : null}
           {connection === 'reconnecting' ? (
             <p className="ve-drawn__notice ve-drawn__notice--warn" role="status">
               <span className="ve-drawn__spinner" aria-hidden="true" />
@@ -284,6 +310,15 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
             icon={camOff ? <CameraOffIcon /> : <CameraIcon />}
           />
         </DrawnDeviceMenu>
+        {effects.support.present ? (
+          <Control
+            label={presenting ? labels.drawnPresentStop : labels.drawnPresent}
+            ariaLabel={presenting ? labels.drawnPresentStop : labels.drawnPresent}
+            pressed={presenting}
+            onClick={togglePresent}
+            icon={<PresentIcon />}
+          />
+        ) : null}
         <span className="ve-ctl-badged">
           <Control
             label={labels.drawnChatShort}
@@ -304,6 +339,27 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
           />
           {menuOpen ? (
             <span className="ve-drawn__menu-list" role="menu" aria-label={labels.drawnMore}>
+              {effects.support.noise ? (
+                <button type="button" role="menuitemcheckbox" aria-checked={effects.noise} className="ve-drawn__menu-item" onClick={effects.toggleNoise}>
+                  <span className="ve-drawn__menu-icon"><NoiseIcon /></span>
+                  <span className="ve-drawn__menu-text">
+                    <span className="ve-drawn__menu-title">{labels.drawnNoise}</span>
+                    <span className="ve-drawn__menu-detail">{labels.drawnNoiseDetail}</span>
+                  </span>
+                  <span className={cx('ve-switch', effects.noise && 've-switch--on')} aria-hidden="true" />
+                </button>
+              ) : null}
+              {effects.support.blur ? (
+                <button type="button" role="menuitemcheckbox" aria-checked={effects.blur} className="ve-drawn__menu-item" onClick={effects.toggleBlur}>
+                  <span className="ve-drawn__menu-icon"><BlurIcon /></span>
+                  <span className="ve-drawn__menu-text">
+                    <span className="ve-drawn__menu-title">{labels.drawnBlur}</span>
+                    <span className="ve-drawn__menu-detail">{labels.drawnBlurDetail}</span>
+                  </span>
+                  <span className={cx('ve-switch', effects.blur && 've-switch--on')} aria-hidden="true" />
+                </button>
+              ) : null}
+              {effects.support.noise || effects.support.blur ? <span className="ve-drawn__menu-sep" role="separator" /> : null}
               <button
                 type="button"
                 role="menuitem"
