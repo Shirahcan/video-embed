@@ -3,6 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { DailyCall } from '@daily-co/daily-js';
 import { DrawnStage } from '../src/components/DrawnStage';
 import { copyStyles } from '../src/drawnFloat';
+import { foldControls } from '../src/barFold';
 
 type Handler = (event?: unknown) => void;
 class FloatCall {
@@ -229,3 +230,48 @@ describe('leaving the call page (P3c)', () => {
     delete (navigator as unknown as { userActivation?: unknown }).userActivation;
   });
 });
+
+describe('a bar that never overflows (B1)', () => {
+  const controls = [{ key: 'float', priority: 1 }, { key: 'present', priority: 2 }, { key: 'chat', priority: 3 }];
+  const widths = { float: 60, present: 60, chat: 60 };
+
+  it('keeps every control when the bar fits', () => {
+    expect(foldControls(controls, widths, 300, 14, 600)).toEqual([]);
+  });
+
+  it('folds Pop out first, then Present, then Chat, and stops as soon as it fits', () => {
+    // fixed 300 + 3 x 74 = 522
+    expect(foldControls(controls, widths, 300, 14, 500)).toEqual(['float']);
+    expect(foldControls(controls, widths, 300, 14, 430)).toEqual(['float', 'present']);
+    expect(foldControls(controls, widths, 300, 14, 200)).toEqual(['float', 'present', 'chat']);
+  });
+
+  it('moves a control that does not fit into More, where it still works', async () => {
+    fakePip();
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(280);
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(620);
+    try {
+      stage(new FloatCall());
+      expect(screen.queryByRole('button', { name: 'Pop the call out into a small window' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Chat' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'More options' }));
+      const items = screen.getAllByRole('menuitem').map((m) => m.textContent);
+      expect(items).toEqual(expect.arrayContaining(['Pop the call out into a small window', 'Chat with everyone']));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Chat with everyone' }));
+      expect(screen.getByRole('textbox')).toBeTruthy();
+    } finally {
+      width.mockRestore();
+      scroll.mockRestore();
+    }
+  });
+
+  it('keeps exactly four buttons in the floating window', async () => {
+    const { doc } = fakePip();
+    stage(new FloatCall());
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Pop the call out into a small window' }));
+    });
+    expect(doc.body.querySelectorAll('button')).toHaveLength(4);
+  });
+});
+

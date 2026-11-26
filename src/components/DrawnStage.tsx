@@ -6,6 +6,7 @@ import { PRESENT_OPTIONS, useDrawnEffects } from '../drawnEffects';
 import { prefersMirroredSelf, setMirroredSelf } from '../callScreen';
 import { createPortal } from 'react-dom';
 import { useDrawnFloat } from '../drawnFloat';
+import { useBarFold, type FoldableControl } from '../barFold';
 import { DrawnFloat } from './DrawnFloat';
 import { Control } from './DrawnControl';
 import { DrawnMoreMenu } from './DrawnMoreMenu';
@@ -167,6 +168,16 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
   const self = people.find((p) => p.local) ?? null;
   const others = people.filter((p) => !p.local);
   const chat = useDrawnChat(call, self?.name ?? '', chatOpen);
+  // B1: the bar never overflows. Pop out folds into More first, then Present, then Chat; mic,
+  // camera, More and Leave always stay.
+  const barRef = useRef<HTMLDivElement>(null);
+  const foldable: FoldableControl[] = [
+    ...(float.supported ? [{ key: 'float', priority: 1 }] : []),
+    ...(effects.support.present ? [{ key: 'present', priority: 2 }] : []),
+    { key: 'chat', priority: 3 },
+  ];
+  const folded = useBarFold(rootRef, barRef, foldable);
+  const isFolded = (key: string) => folded.includes(key);
   const micOff = self ? !self.audioOn : false;
   const camOff = self ? !self.videoOn : false;
   // You are presenting when your own screen track is live; you never see it back (no mirror tunnel).
@@ -355,7 +366,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
 
       {chatOpen ? <DrawnChatPanel messages={chat.messages} onSend={chat.send} onClose={() => setChatOpen(false)} /> : null}
 
-      <div className="ve-drawn__bar" role="toolbar" aria-label={labels.drawnControls}>
+      <div className="ve-drawn__bar" role="toolbar" aria-label={labels.drawnControls} ref={barRef}>
         <DrawnDeviceMenu
           label={labels.drawnMicSettings}
           onChoose={devices.choose}
@@ -389,25 +400,29 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             icon={camOff ? <CameraOffIcon /> : <CameraIcon />}
           />
         </DrawnDeviceMenu>
-        {effects.support.present ? (
-          <Control
-            label={presenting ? labels.drawnPresentStop : labels.drawnPresent}
-            ariaLabel={presenting ? labels.drawnPresentStop : labels.drawnPresent}
-            pressed={presenting}
-            onClick={togglePresent}
-            icon={<PresentIcon />}
-          />
+        {effects.support.present && !isFolded('present') ? (
+          <span className="ve-ctl-slot" data-fold-key="present">
+            <Control
+              label={presenting ? labels.drawnPresentStop : labels.drawnPresent}
+              ariaLabel={presenting ? labels.drawnPresentStop : labels.drawnPresent}
+              pressed={presenting}
+              onClick={togglePresent}
+              icon={<PresentIcon />}
+            />
+          </span>
         ) : null}
-        {float.supported ? (
-          <Control
-            label={float.host ? labels.drawnFloatBack : labels.drawnFloat}
-            ariaLabel={float.host ? labels.drawnFloatBack : labels.drawnFloatLong}
-            pressed={Boolean(float.host)}
-            onClick={() => (float.host ? float.close() : void float.open())}
-            icon={<PopOutIcon />}
-          />
+        {float.supported && !isFolded('float') ? (
+          <span className="ve-ctl-slot" data-fold-key="float">
+            <Control
+              label={float.host ? labels.drawnFloatBack : labels.drawnFloat}
+              ariaLabel={float.host ? labels.drawnFloatBack : labels.drawnFloatLong}
+              pressed={Boolean(float.host)}
+              onClick={() => (float.host ? float.close() : void float.open())}
+              icon={<PopOutIcon />}
+            />
+          </span>
         ) : null}
-        <span className="ve-ctl-badged">
+        {isFolded('chat') ? null : <span className="ve-ctl-badged" data-fold-key="chat">
           <Control
             label={labels.drawnChatShort}
             ariaLabel={chat.unread > 0 ? labels.drawnChatUnread(chat.unread) : labels.drawnChat}
@@ -416,9 +431,14 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             icon={<ChatIcon />}
           />
           {chat.unread > 0 ? <span className="ve-ctl-badge" aria-hidden="true">{chat.unread > 9 ? '9+' : chat.unread}</span> : null}
-        </span>
+        </span>}
         <DrawnMoreMenu
           onUseStandard={onUseStandard}
+          actions={[
+            ...(isFolded('float') ? [{ key: 'float', title: float.host ? labels.drawnFloatBack : labels.drawnFloatLong, icon: <PopOutIcon />, pressed: Boolean(float.host), onSelect: () => (float.host ? float.close() : void float.open()) }] : []),
+            ...(isFolded('present') ? [{ key: 'present', title: presenting ? labels.drawnPresentStop : labels.drawnPresent, icon: <PresentIcon />, pressed: presenting, onSelect: togglePresent }] : []),
+            ...(isFolded('chat') ? [{ key: 'chat', title: chat.unread > 0 ? labels.drawnChatUnread(chat.unread) : labels.drawnChat, icon: <ChatIcon />, pressed: chatOpen, badge: chat.unread, onSelect: () => setChatOpen((o) => !o) }] : []),
+          ]}
           switches={[
             ...(effects.support.noise ? [{ key: 'noise', on: effects.noise, title: labels.drawnNoise, detail: labels.drawnNoiseDetail, icon: <NoiseIcon />, onToggle: effects.toggleNoise }] : []),
             ...(effects.support.blur ? [{ key: 'blur', on: effects.blur, title: labels.drawnBlur, detail: labels.drawnBlurDetail, icon: <BlurIcon />, onToggle: effects.toggleBlur }] : []),

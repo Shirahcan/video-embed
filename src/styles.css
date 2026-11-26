@@ -251,7 +251,7 @@
   --ve-glass: rgb(15 23 42 / 0.55);
   --ve-glass-border: rgb(255 255 255 / 0.14);
 }
-.ve-drawn { position: absolute; inset: 0; display: flex; flex-direction: column; color: #fff; font-family: var(--ve-font); container-type: inline-size;
+.ve-drawn { position: absolute; inset: 0; display: flex; flex-direction: column; color: #fff; font-family: var(--ve-font); container-type: size;
   background: radial-gradient(120% 60% at 50% -10%, var(--ve-stage-glow), transparent 60%), var(--ve-stage); }
 .ve-drawn__grid { position: relative; flex: 1; min-height: 0; display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 10px; padding: 12px 12px 0; }
 /* Every tile keeps a 16:9 frame at the size fitTiles() worked out for this stage (Meet's tiling). */
@@ -448,3 +448,18 @@
 /* L1: the host's Leave menu opens from the bar's right end, so it stays inside the stage. */
 .ve-drawn__menu-list--end { left: auto; right: 0; transform: none; }
 .ve-drawn__menu-item--danger .ve-drawn__menu-title, .ve-drawn__menu-item--danger .ve-drawn__menu-icon { color: #dc2626; }
+
+/* B1: the bar never overflows; controls that do not fit move into More. */
+.ve-drawn__bar { max-width: calc(100% - 24px); flex-wrap: nowrap; }
+.ve-ctl-slot { display: inline-flex; }
+.ve-drawn__menu-item--on { background: color-mix(in srgb, var(--ve-accent) 14%, transparent); }
+.ve-drawn__menu-count { margin-left: auto; align-self: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ve-accent); color: #fff; font-size: 11px; font-weight: 700; }
+/* B1: a menu never leaves the stage. Its height is held to the stage (with its own scroll); on a
+   narrow call it centres on the bar, which is never wider than the stage, instead of on its button. */
+.ve-drawn .ve-drawn__menu-list { max-height: calc(100cqh - 110px); overflow-y: auto; overscroll-behavior: contain; }
+@container (max-width: 560px) {
+  .ve-drawn__bar .ve-drawn__menu { position: static; }
+  .ve-drawn__bar .ve-drawn__menu-list,
+  .ve-drawn__bar .ve-drawn__menu-list--end { left: 50%; right: auto; transform: translateX(-50%); width: min(300px, calc(100cqw - 24px)); }
+}
