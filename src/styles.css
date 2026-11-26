@@ -235,3 +235,4 @@
 .ve-over__title { margin: 0; font-size: 20px; font-weight: 600; }
 .ve-over__detail { margin: 8px 0 0; color: var(--ve-ink-muted); font-size: 14px; }
 .ve-over__go { margin-top: 24px; width: 100%; }
+.ve-other-tab { display: inline-block; padding: 6px 12px; border-radius: 999px; background: var(--ve-surface); border: 1px solid var(--ve-accent); color: var(--ve-ink); }

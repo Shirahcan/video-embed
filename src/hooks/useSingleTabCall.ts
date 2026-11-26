@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { LOCK_PREFIX, ownTabIds } from '../callMemory';
 
 /**
  * One person, one call, one tab. Every tab holds a valid join, so nothing else stops a second
@@ -23,7 +24,7 @@ interface Lock {
   ts: number;
 }
 
-const keyFor = (callKey: string) => `ve_call_lock:${callKey}`;
+const keyFor = (callKey: string) => `${LOCK_PREFIX}${callKey}`;
 
 function read(callKey: string): Lock | null {
   try {
@@ -61,6 +62,13 @@ export interface SingleTabCall {
 /** `callKey`: the call's room address without its pass (the same in every tab). Null = no guard. */
 export function useSingleTabCall(callKey: string | null): SingleTabCall {
   const [tabId] = useState(newTabId);
+  // This tab's own locks never read as "a call in another tab" (useCallInAnotherTab).
+  useEffect(() => {
+    ownTabIds.add(tabId);
+    return () => {
+      ownTabIds.delete(tabId);
+    };
+  }, [tabId]);
   // At mount a fresh tab id can own no lock, so "held elsewhere" is simply "a live lock exists".
   const [heldElsewhere, setHeldElsewhere] = useState(() => {
     if (!callKey || typeof window === 'undefined') return false;

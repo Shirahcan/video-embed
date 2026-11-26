@@ -47,6 +47,10 @@ export interface DockedCall {
   backup?: { url?: string | null } | null;
   /** Call continuity: the person already in this call on another device is asked first (CallFrame `continuity`). */
   continuity?: boolean;
+  /** Remember the call in this tab under this key (CallFrame `rememberAs`), for a rejoin after a reload. */
+  rememberAs?: string | null;
+  /** Ask "Leave the call?" before the tab closes or reloads mid-call (CallFrame `confirmLeave`). */
+  confirmLeave?: boolean;
 }
 
 /** The call's behaviour, from the page that owns it. Kept in a ref: changing them never touches the frame. */
@@ -107,7 +111,9 @@ function sameCall(a: DockedCall, b: DockedCall): boolean {
     (a.endCueLabel ?? null) === (b.endCueLabel ?? null) &&
     Boolean(a.backup) === Boolean(b.backup) &&
     (a.backup?.url ?? null) === (b.backup?.url ?? null) &&
-    Boolean(a.continuity) === Boolean(b.continuity)
+    Boolean(a.continuity) === Boolean(b.continuity) &&
+    (a.rememberAs ?? null) === (b.rememberAs ?? null) &&
+    Boolean(a.confirmLeave) === Boolean(b.confirmLeave)
   );
 }
 
@@ -292,6 +298,8 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             onEnded={onEnded}
             presence={presence}
             continuity={Boolean(call.continuity)}
+            rememberAs={call.rememberAs ?? null}
+            confirmLeave={Boolean(call.confirmLeave)}
             onJoined={onJoined}
             onLeft={onLeft}
             onFailure={onFailure}

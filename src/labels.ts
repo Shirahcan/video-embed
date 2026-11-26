@@ -106,6 +106,8 @@ export interface VideoLabels {
   callEndedDetail: string;
   // One call per machine (CallFrame's single-tab guard)
   heldElsewhereTitle: string;
+  /** Any page of another tab while a call runs in this browser (CallInAnotherTabNotice). */
+  callInAnotherTab: string;
   heldElsewhereDetail: string;
   moveCallHere: string;
   // Call continuity: the same person on another device (InCallElsewhere)
@@ -430,6 +432,7 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   callEnded: 'This call has ended',
   callEndedDetail: 'The host ended the call for everyone. You can close this page.',
   heldElsewhereTitle: 'You are already in this call in another tab',
+  callInAnotherTab: 'Your call is running in another tab.',
   heldElsewhereDetail: 'Joining twice from one device makes both microphones live, which causes echo for everyone else. Switch back to the other tab, or move the call here.',
   moveCallHere: 'Move the call here',
   inCallElsewhereTitle: "You're in this call on another device",

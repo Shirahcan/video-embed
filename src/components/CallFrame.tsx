@@ -6,6 +6,7 @@ import { presenceDeviceId } from '../presenceDevice';
 import { InCallElsewhere } from './InCallElsewhere';
 import { useDailyFrame, type CallParticipant, type WaitingPerson } from '../hooks/useDailyFrame';
 import { useSingleTabCall } from '../hooks/useSingleTabCall';
+import { forgetInCall, rememberInCall } from '../callMemory';
 import { cx, useVideoUi } from '../theme';
 import { BackupCallOffer, type BackupCall } from './BackupCallOffer';
 import { KnockBar } from './KnockBar';
@@ -71,6 +72,14 @@ export interface CallFrameProps {
    */
   singleTab?: boolean;
   /**
+   * Remember in this tab that the person is in this call, under the product's own key (e.g.
+   * `meeting:42`), so after a reload the product can take them straight back (`wasInCallRecently`).
+   * Forgotten when they leave or the frame goes away in the app. Absent = nothing is remembered.
+   */
+  rememberAs?: string | null;
+  /** Ask "Leave the call?" (the browser's own prompt) before the tab closes or reloads mid-call. */
+  confirmLeave?: boolean;
+  /**
    * The last rescue: when the room cannot be fixed, offer a matching meeting on the product's
    * backup account. With `url` set (someone already switched), everyone on the call is told.
    * Absent = no backup is offered.
@@ -132,7 +141,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, continuity = false, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, continuity = false, enabled = true, className, style }: CallFrameProps) {
   // Call continuity: one id per browser, and what to do about the person's other device.
   const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
   // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
@@ -263,6 +272,31 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     onFailure?.(failure, 'idle');
   }, [fetchFreshUrl, onFailure, repair, checkEnded, markEnded]);
 
+  // The call beyond the page: the tab remembers it as it goes away (a reload reads it fresh), asks
+  // before closing mid-call when the product wants that, and forgets it when the frame leaves the app.
+  useEffect(() => {
+    if (typeof window === 'undefined' || (!rememberAs && !confirmLeave)) return undefined;
+    const onPageHide = () => {
+      if (rememberAs && inCallRef.current) rememberInCall(rememberAs);
+    };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!confirmLeave || !inCallRef.current) return;
+      e.preventDefault();
+      // Older browsers need a returnValue to show their prompt (the text itself is ignored).
+      e.returnValue = '';
+    };
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, [rememberAs, confirmLeave]);
+  useEffect(() => () => {
+    // An unmount inside the app (not a reload: React's cleanup never runs then) is leaving the call.
+    if (rememberAs) forgetInCall(rememberAs);
+  }, [rememberAs]);
+
   // The room's address without its pass: the same in every tab on this call.
   const tab = useSingleTabCall(singleTab ? (joinUrl.split('?')[0] ?? null) : null);
 
@@ -276,6 +310,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       joinedNow(takeOverRef.current);
       takeOverRef.current = false;
       inCallRef.current = true;
+      if (rememberAs) rememberInCall(rememberAs);
       setFirstJoinedAt((t) => t ?? Date.now());
       autoTried.current = false;
       setRecovery('idle');
@@ -286,6 +321,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       // A host who leaves by the call's own Leave button is asked whether the call is over.
       const wasInCall = inCallRef.current;
       inCallRef.current = false;
+      if (rememberAs) forgetInCall(rememberAs);
       if (onEndForEveryone && wasInCall && !endedRef.current && !endingRef.current && !leavingAloneRef.current && !movedRef.current) setEndStep('left-host');
       leavingAloneRef.current = false;
       onLeft?.();
