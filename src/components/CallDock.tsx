@@ -64,6 +64,8 @@ export interface DockedCallHandlers {
   presence?: PresenceSender;
   onJoined?: () => void;
   onLeft?: () => void;
+  /** The person chose to leave (CallFrame `onLeftCall`). */
+  onLeftCall?: () => void;
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
   onKnock?: (person: WaitingPerson) => void;
@@ -263,6 +265,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
     h.current.onParticipantsChange?.(p);
   }, [h]);
   const onEndCue = useCallback(() => h.current.onEndCue?.(), [h]);
+  const onLeftCall = useCallback(() => h.current.onLeftCall?.(), [h]);
   // The drawn screen carries its own round buttons in the corner window; the text bar is for Prebuilt.
   const [drawnInUse, setDrawnInUse] = useState(false);
   const onScreenChange = useCallback((s: 'drawn' | 'prebuilt') => setDrawnInUse(s === 'drawn'), []);
@@ -313,6 +316,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             onScreenChange={onScreenChange}
             onJoined={onJoined}
             onLeft={onLeft}
+            onLeftCall={onLeftCall}
             onFailure={onFailure}
             onDeviceError={onDeviceError}
             onKnock={onKnock}

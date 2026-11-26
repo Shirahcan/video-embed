@@ -240,4 +240,55 @@ describe('which call screen a device gets', () => {
     await waitFor(() => expect(latest().kind).toBe('frame'));
     expect(window.localStorage.getItem(STANDARD_SCREEN_KEY)).toBe('standard');
   });
+  it('a guest who leaves the drawn screen sees "You left the call" with Rejoin, never an empty stage', async () => {
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    act(() => latest().emit('joined-meeting'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
+    expect(await screen.findByText('You left the call')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Rejoin the call' })).toBeTruthy();
+    expect(screen.queryByText('You left the call. Is it over?')).toBeNull();
+  });
+
+  it('a host chooses on Leave: Leave the call (no after-the-fact ask) or End the call for everyone', async () => {
+    const onEnd = vi.fn(() => Promise.resolve());
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onEndForEveryone={onEnd} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    act(() => latest().emit('joined-meeting'));
+    // No separate End button above the drawn call: Leave asks.
+    expect(screen.queryByRole('button', { name: 'End for everyone' })).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /End for everyone/ }));
+    await waitFor(() => expect(onEnd).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('This call has ended')).toBeTruthy();
+  });
+
+  it('a host who picks Leave the call is not asked whether it is over', async () => {
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onEndForEveryone={() => Promise.resolve()} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    act(() => latest().emit('joined-meeting'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Leave the call/ }));
+    expect(await screen.findByText('You left the call')).toBeTruthy();
+    expect(screen.queryByText('You left the call. Is it over?')).toBeNull();
+  });
+  it('tells the product the person chose to leave, and not when the host ended the call', async () => {
+    const left = vi.fn();
+    const view = render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onLeftCall={left} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    act(() => latest().emit('joined-meeting'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
+    await waitFor(() => expect(left).toHaveBeenCalledTimes(1));
+    view.unmount();
+
+    const left2 = vi.fn();
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onLeftCall={left2} onEndForEveryone={() => Promise.resolve()} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    act(() => latest().emit('joined-meeting'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /End for everyone/ }));
+    await screen.findByText('This call has ended');
+    act(() => latest().emit('left-meeting'));
+    expect(left2).not.toHaveBeenCalled();
+  });
 });

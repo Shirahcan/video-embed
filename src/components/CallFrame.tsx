@@ -31,6 +31,12 @@ export interface CallFrameProps {
   fetchFreshUrl?: (why: CallFailureKind) => Promise<string>;
   onJoined?: () => void;
   onLeft?: () => void;
+  /**
+   * The person chose to leave on the drawn screen (L2): its Leave, or 'Leave' when alone. Never
+   * for a call that ended, moved to another device or swapped screens. A product takes them to
+   * the meeting's page; without one the kit shows 'You left the call' with Rejoin.
+   */
+  onLeftCall?: () => void;
   /** Every failure and its outcome, for the product's own record. */
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
@@ -157,7 +163,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
   // Call continuity: one id per browser, and what to do about the person's other device.
   const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
   // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
@@ -233,6 +239,12 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
   const [aloneAsk, setAloneAsk] = useState(false);
   // Leaving from the waiting prompt is not "is the call over?": nobody else is in it.
   const leavingAloneRef = useRef(false);
+  // L1: the person already chose on the drawn screen's Leave, so no after-the-fact 'Is it over?'.
+  const leaveChosenRef = useRef(false);
+  const onLeftCallRef = useRef(onLeftCall);
+  useEffect(() => {
+    onLeftCallRef.current = onLeftCall;
+  }, [onLeftCall]);
 
   // A new URL from the product (a later join) replaces ours.
   const [seenUrl, setSeenUrl] = useState(url);
@@ -364,8 +376,11 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       const wasInCall = inCallRef.current;
       inCallRef.current = false;
       if (rememberAs) forgetInCall(rememberAs);
-      if (onEndForEveryone && wasInCall && !endedRef.current && !endingRef.current && !leavingAloneRef.current && !movedRef.current) setEndStep('left-host');
+      if (onEndForEveryone && wasInCall && !endedRef.current && !endingRef.current && !leavingAloneRef.current && !leaveChosenRef.current && !movedRef.current) setEndStep('left-host');
+      const chose = leaveChosenRef.current || leavingAloneRef.current;
       leavingAloneRef.current = false;
+      leaveChosenRef.current = false;
+      if (chose && !endedRef.current && !endingRef.current && !movedRef.current) onLeftCallRef.current?.();
       onLeft?.();
     },
     onDeviceError: (d) => {
@@ -496,7 +511,8 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
           <button type="button" className={cx('ve-btn', classNames.button)} onClick={() => setTroubleOpen((o) => !o)} aria-expanded={troubleOpen}>
             {labels.troubleOpen}
           </button>
-          {onEndForEveryone && frame.state === 'joined' ? (
+          {/* The drawn screen asks on its own Leave (L1); this button is the standard screen's. */}
+          {onEndForEveryone && frame.state === 'joined' && screen !== 'drawn' ? (
             <button type="button" className={cx('ve-btn ve-btn--danger', classNames.button)} onClick={() => { setEndError(false); setEndStep('confirm'); }}>
               {labels.endForEveryone}
             </button>
@@ -525,7 +541,11 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
               call={frame.call}
               access={frame.access}
               compact={compact ? { onBack: compact.onBack, onFloated: compact.onFloated, clock: frame.state === 'joined' ? <CallTimer startedAt={startedAt} joinedAt={firstJoinedAt} /> : null } : null}
-              onLeave={frame.leave}
+              onLeave={() => {
+                leaveChosenRef.current = true;
+                frame.leave();
+              }}
+              onEndForEveryone={onEndForEveryone ? () => void endForEveryone() : undefined}
               setDevices={frame.setDevices}
               onUseStandard={() => {
                 preferStandardScreen();
@@ -625,6 +645,18 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
                 }}
               >
                 {labels.aloneLeave}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {screen === 'drawn' && frame.state === 'left' && !ended && endStep === 'none' ? (
+          <div className="ve-overlay" role="status">
+            <p className="ve-overlay__title">{labels.drawnYouLeft}</p>
+            <p className="ve-overlay__detail">{labels.drawnYouLeftDetail}</p>
+            <div className="ve-overlay__actions">
+              <button type="button" className={cx('ve-btn ve-btn--primary', classNames.button, classNames.buttonPrimary)} onClick={() => frame.rejoin()}>
+                {labels.rejoin}
               </button>
             </div>
           </div>

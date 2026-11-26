@@ -444,3 +444,7 @@
 
 /* P3c: the call is out on the screen; the corner window stays mounted (sound, the call) but out of sight. */
 .ve-dock--out { visibility: hidden; pointer-events: none; }
+
+/* L1: the host's Leave menu opens from the bar's right end, so it stays inside the stage. */
+.ve-drawn__menu-list--end { left: auto; right: 0; transform: none; }
+.ve-drawn__menu-item--danger .ve-drawn__menu-title, .ve-drawn__menu-item--danger .ve-drawn__menu-icon { color: #dc2626; }

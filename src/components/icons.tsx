@@ -199,3 +199,24 @@ export function BackToTabIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+/** Leaving on your own: an arrow out of a door. */
+export function ExitIcon() {
+  return (
+    <Icon>
+      <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
+      <path d="M9 8l-4 4 4 4" />
+      <path d="M5 12h11" />
+    </Icon>
+  );
+}
+
+/** Ending the call for everyone: a stop sign in a circle. */
+export function EndCallIcon() {
+  return (
+    <Icon>
+      <circle cx="12" cy="12" r="9" />
+      <rect x="9" y="9" width="6" height="6" rx="1" />
+    </Icon>
+  );
+}

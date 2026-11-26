@@ -1,7 +1,7 @@
 import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode, useCallback } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
-import { BlurIcon, MirrorIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, LeaveIcon, MicIcon, MicOffIcon, NoiseIcon, PresentIcon } from './icons';
+import { BlurIcon, MirrorIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, MicIcon, MicOffIcon, NoiseIcon, PresentIcon } from './icons';
 import { PRESENT_OPTIONS, useDrawnEffects } from '../drawnEffects';
 import { prefersMirroredSelf, setMirroredSelf } from '../callScreen';
 import { createPortal } from 'react-dom';
@@ -9,6 +9,7 @@ import { useDrawnFloat } from '../drawnFloat';
 import { DrawnFloat } from './DrawnFloat';
 import { Control } from './DrawnControl';
 import { DrawnMoreMenu } from './DrawnMoreMenu';
+import { DrawnLeaveMenu } from './DrawnLeaveMenu';
 import { DrawnChatPanel } from './DrawnChatPanel';
 import { useDrawnChat } from '../drawnChat';
 import { useDrawnNetwork } from '../drawnNetwork';
@@ -45,6 +46,8 @@ export interface DrawnStageProps {
   } | null;
   /** Leave the call (CallFrame's own leave, so its "Is it over?" and presence follow). */
   onLeave: () => void;
+  /** A host's End the call for everyone (L1): Leave then asks Leave the call / End for everyone. */
+  onEndForEveryone?: () => void;
   /** Switch this device to Daily Prebuilt. */
   onUseStandard: () => void;
   /** This person's access: while `asking` or `denied` the stage says so instead of the call. */
@@ -56,7 +59,7 @@ export interface DrawnStageProps {
   setDevices?: (devices: { audioDeviceId?: string; videoDeviceId?: string }) => void;
 }
 
-export function DrawnStage({ call, access = null, compact = null, onLeave, onUseStandard, setDevices }: DrawnStageProps) {
+export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices }: DrawnStageProps) {
   const { labels } = useVideoUi();
   const devices = useDrawnDevices(call, { microphone: labels.microphone, camera: labels.camera, speaker: labels.speaker }, setDevices);
   // The browser refused to play the call's sound (no click on the page yet): one button fixes it.
@@ -423,7 +426,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onUse
             ...(float.supported ? [{ key: 'float', on: float.autoFloat, title: labels.drawnAutoFloat, detail: labels.drawnAutoFloatDetail, icon: <PopOutIcon />, onToggle: float.toggleAuto }] : []),
           ]}
         />
-        <Control label={labels.drawnLeave} ariaLabel={labels.drawnLeave} danger onClick={onLeave} icon={<LeaveIcon />} />
+        <DrawnLeaveMenu onLeave={onLeave} onEndForEveryone={onEndForEveryone} />
       </div>
     </div>
   );

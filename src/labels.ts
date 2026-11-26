@@ -102,6 +102,12 @@ export interface VideoLabels {
   ending: string;
   endFailed: string;
   leftTitle: string;
+  /** L1: the host's Leave menu and the card after leaving the drawn screen. */
+  drawnLeaveOnly: string;
+  drawnLeaveOnlyDetail: string;
+  drawnEndDetail: string;
+  drawnYouLeft: string;
+  drawnYouLeftDetail: string;
   leftKeepOpen: string;
   // Waiting alone (nobody else in the call for a while)
   aloneTitle: (minutes: number) => string;
@@ -506,6 +512,11 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   ending: 'Ending the call...',
   endFailed: 'The call could not be ended just now. Try again.',
   leftTitle: 'You left the call. Is it over?',
+  drawnLeaveOnly: 'Leave the call',
+  drawnLeaveOnlyDetail: 'The others can carry on without you.',
+  drawnEndDetail: 'Everyone leaves and the room closes.',
+  drawnYouLeft: 'You left the call',
+  drawnYouLeftDetail: 'You can go back in while the room is open.',
   leftKeepOpen: 'Leave it open and the others can carry on; it ends by itself once everyone has gone.',
   aloneTitle: (minutes) => `You have been the only one here for ${minutes} minutes`,
   aloneDetail: 'Keep waiting if they may still join, or leave the call. You can come back through the same link.',
