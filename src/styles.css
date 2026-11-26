@@ -441,3 +441,6 @@
 .ve-float--dock .ve-float__bar { padding: 6px 8px 8px; gap: 8px; }
 .ve-float--dock .ve-float__self { bottom: 52px; right: 12px; width: 28%; }
 .ve-float__clock { position: absolute; top: 10px; left: 10px; z-index: 3; }
+
+/* P3c: the call is out on the screen; the corner window stays mounted (sound, the call) but out of sight. */
+.ve-dock--out { visibility: hidden; pointer-events: none; }

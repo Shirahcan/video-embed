@@ -37,7 +37,12 @@ export interface DrawnStageProps {
    * The corner window (P3b): the call drawn small, the float's own look, with "Back to the call"
    * and the call clock, so the corner window, the float and the room share one language.
    */
-  compact?: { onBack: () => void; clock?: ReactNode } | null;
+  compact?: {
+    onBack: () => void;
+    clock?: ReactNode;
+    /** The call went out to the floating window (true) or came back (false): the host hides its corner window meanwhile. */
+    onFloated?: (floated: boolean) => void;
+  } | null;
   /** Leave the call (CallFrame's own leave, so its "Is it over?" and presence follow). */
   onLeave: () => void;
   /** Switch this device to Daily Prebuilt. */
@@ -62,6 +67,36 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onUse
   const [mirror, setMirror] = useState(prefersMirroredSelf);
   const rootRef = useRef<HTMLDivElement>(null);
   const float = useDrawnFloat(useCallback(() => rootRef.current, []));
+
+  // Leaving the call page (P3c, owner 2026-11-26: "always be the screen"): the call goes out to the
+  // floating window on the screen rather than the corner of the page. The browser allows that only
+  // for a few seconds after a click, so a click on a link works; the Back button, a slow page or a
+  // browser without the window keeps the corner window, which stays the fallback. A window opened
+  // this way closes again when the person comes back to the call page.
+  const inCorner = compact !== null;
+  const openedOnLeaveRef = useRef(false);
+  const floatOpen = float.open;
+  const floatClose = float.close;
+  useEffect(() => {
+    if (inCorner) {
+      if (!float.supported || float.host) return;
+      const activation = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+      if (activation && !activation.isActive) return;
+      openedOnLeaveRef.current = true;
+      void floatOpen({ quiet: true });
+      return;
+    }
+    if (openedOnLeaveRef.current) {
+      openedOnLeaveRef.current = false;
+      floatClose();
+    }
+    // Only the move between the room and another page decides this, never a re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- float.host / supported are read at the moment of the move on purpose
+  }, [inCorner]);
+  const onFloated = compact?.onFloated;
+  useEffect(() => {
+    onFloated?.(Boolean(float.host));
+  }, [onFloated, float.host]);
   const toggleMirror = () => {
     setMirroredSelf(!mirror);
     setMirror(!mirror);
@@ -165,9 +200,33 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onUse
   }, [call, layersKey]);
 
   const mainPerson = presenter ? null : others.find((p) => p.id === speakerId) ?? others[0] ?? null;
+  const floatPortal = float.host
+    ? createPortal(
+        <DrawnFloat
+          main={mainPerson}
+          presenterScreen={presenter?.screen ?? null}
+          presenterName={presenter?.name ?? ''}
+          self={self}
+          micOff={micOff}
+          camOff={camOff}
+          mirror={mirror}
+          speakingId={speakerId}
+          onMic={() => call.setLocalAudio(micOff)}
+          onCam={() => call.setLocalVideo(camOff)}
+          onBack={compact ? compact.onBack : float.close}
+          backLabel={compact ? labels.drawnDockBack : undefined}
+          onLeave={() => {
+            float.close();
+            onLeave();
+          }}
+        />,
+        float.host,
+      )
+    : null;
   if (compact) {
     return (
       <div ref={rootRef} className="ve-drawn ve-drawn--compact">
+        {floatPortal}
         <DrawnFloat
           className="ve-float--dock"
           main={mainPerson}
@@ -195,28 +254,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onUse
 
   return (
     <div ref={rootRef} className={cx('ve-drawn', chatOpen && 've-drawn--chat', float.host && 've-drawn--floated')} role="region" aria-label={labels.drawnRegion}>
-      {float.host
-        ? createPortal(
-            <DrawnFloat
-              main={mainPerson}
-              presenterScreen={presenter?.screen ?? null}
-              presenterName={presenter?.name ?? ''}
-              self={self}
-              micOff={micOff}
-              camOff={camOff}
-              mirror={mirror}
-              speakingId={speakerId}
-              onMic={() => call.setLocalAudio(micOff)}
-              onCam={() => call.setLocalVideo(camOff)}
-              onBack={float.close}
-              onLeave={() => {
-                float.close();
-                onLeave();
-              }}
-            />,
-            float.host,
-          )
-        : null}
+      {floatPortal}
       {float.host ? (
         <div className="ve-drawn__floated" role="status">
           <PopOutIcon width={28} height={28} />

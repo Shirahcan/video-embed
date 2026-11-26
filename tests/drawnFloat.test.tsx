@@ -182,3 +182,50 @@ describe('the corner window (compact)', () => {
     expect(call.audio).toEqual([false]);
   });
 });
+
+describe('leaving the call page (P3c)', () => {
+  it('takes the call out to the screen, hides the corner, and closes it again on coming back', async () => {
+    const pip = fakePip();
+    const call = new FloatCall();
+    const onFloated = vi.fn();
+    const onBack = vi.fn();
+    const el = (compact: boolean) => (
+      <DrawnStage
+        call={call as unknown as DailyCall}
+        compact={compact ? { onBack, onFloated } : null}
+        onLeave={() => {}}
+        onUseStandard={() => {}}
+      />
+    );
+    const view = render(el(false));
+    await act(async () => {
+      view.rerender(el(true));
+    });
+    expect(pip.requestWindow).toHaveBeenCalledTimes(1);
+    expect(onFloated).toHaveBeenLastCalledWith(true);
+    const back = pip.doc.querySelector('button[aria-label="Back to the call"]') as HTMLButtonElement;
+    expect(back).toBeTruthy();
+    back.click();
+    expect(onBack).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      view.rerender(el(false));
+    });
+    expect(pip.win.closed).toBe(true);
+  });
+
+  it('stays in the corner when the browser has no recent click to allow the window', async () => {
+    const pip = fakePip();
+    (navigator as unknown as { userActivation?: unknown }).userActivation = { isActive: false };
+    const call = new FloatCall();
+    const el = (compact: boolean) => (
+      <DrawnStage call={call as unknown as DailyCall} compact={compact ? { onBack: () => {} } : null} onLeave={() => {}} onUseStandard={() => {}} />
+    );
+    const view = render(el(false));
+    await act(async () => {
+      view.rerender(el(true));
+    });
+    expect(pip.requestWindow).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Back to the call' })).toBeTruthy();
+    delete (navigator as unknown as { userActivation?: unknown }).userActivation;
+  });
+});

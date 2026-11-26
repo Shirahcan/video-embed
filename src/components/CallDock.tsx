@@ -266,6 +266,8 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
   // The drawn screen carries its own round buttons in the corner window; the text bar is for Prebuilt.
   const [drawnInUse, setDrawnInUse] = useState(false);
   const onScreenChange = useCallback((s: 'drawn' | 'prebuilt') => setDrawnInUse(s === 'drawn'), []);
+  // The drawn call went out to the floating window: the corner window steps aside (the call stays mounted here).
+  const [floatedOut, setFloatedOut] = useState(false);
   const switchToBackup = useCallback(() => {
     const fn = h.current.switchToBackup;
     return fn ? fn() : Promise.reject(new Error('No backup offered.'));
@@ -289,7 +291,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
       {call && (!isMinimized || hasJoined) ? (
         <div
           style={style}
-          className={cx('ve-dock', isMinimized && 've-dock--mini', className)}
+          className={cx('ve-dock', isMinimized && 've-dock--mini', isMinimized && floatedOut && 've-dock--out', className)}
           data-minimized={isMinimized ? 'true' : 'false'}
           role="region"
           aria-label={labels.dockRegion}
@@ -307,7 +309,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             rememberAs={call.rememberAs ?? null}
             confirmLeave={Boolean(call.confirmLeave)}
             drawn={Boolean(call.drawn)}
-            compact={isMinimized ? { onBack: () => navigate(call.returnHref) } : null}
+            compact={isMinimized ? { onBack: () => navigate(call.returnHref), onFloated: setFloatedOut } : null}
             onScreenChange={onScreenChange}
             onJoined={onJoined}
             onLeft={onLeft}

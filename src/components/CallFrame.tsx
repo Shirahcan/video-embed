@@ -92,7 +92,7 @@ export interface CallFrameProps {
    * Draw the call small (the corner window, P3b): given only while minimised. Ignored on the
    * standard screen, which has its own layout.
    */
-  compact?: { onBack: () => void } | null;
+  compact?: { onBack: () => void; onFloated?: (floated: boolean) => void } | null;
   /** Which screen this device is on, as it changes (a host hides its own bar when the drawn one has controls). */
   onScreenChange?: (screen: CallScreen) => void;
   /**
@@ -524,7 +524,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
             <DrawnStage
               call={frame.call}
               access={frame.access}
-              compact={compact ? { onBack: compact.onBack, clock: frame.state === 'joined' ? <CallTimer startedAt={startedAt} joinedAt={firstJoinedAt} /> : null } : null}
+              compact={compact ? { onBack: compact.onBack, onFloated: compact.onFloated, clock: frame.state === 'joined' ? <CallTimer startedAt={startedAt} joinedAt={firstJoinedAt} /> : null } : null}
               onLeave={frame.leave}
               setDevices={frame.setDevices}
               onUseStandard={() => {

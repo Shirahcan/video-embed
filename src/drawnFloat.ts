@@ -88,7 +88,8 @@ export function useDrawnFloat(themeFrom: () => HTMLElement | null) {
     }
   }, []);
 
-  const open = useCallback(async () => {
+  /** `quiet`: an automatic attempt; if the browser refuses, nothing is shown (the corner window is the fallback). */
+  const open = useCallback(async (options?: { quiet?: boolean }) => {
     const api = pipApi();
     if (!api || pipRef.current) return;
     setFailed(false);
@@ -119,7 +120,7 @@ export function useDrawnFloat(themeFrom: () => HTMLElement | null) {
       setHost(root);
     } catch {
       // Refused (no user gesture, a policy, or another float already open): the stage stays put.
-      setFailed(true);
+      if (!options?.quiet) setFailed(true);
     }
   }, [themeFrom]);
 
