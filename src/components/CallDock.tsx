@@ -263,6 +263,9 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
     h.current.onParticipantsChange?.(p);
   }, [h]);
   const onEndCue = useCallback(() => h.current.onEndCue?.(), [h]);
+  // The drawn screen carries its own round buttons in the corner window; the text bar is for Prebuilt.
+  const [drawnInUse, setDrawnInUse] = useState(false);
+  const onScreenChange = useCallback((s: 'drawn' | 'prebuilt') => setDrawnInUse(s === 'drawn'), []);
   const switchToBackup = useCallback(() => {
     const fn = h.current.switchToBackup;
     return fn ? fn() : Promise.reject(new Error('No backup offered.'));
@@ -304,6 +307,8 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             rememberAs={call.rememberAs ?? null}
             confirmLeave={Boolean(call.confirmLeave)}
             drawn={Boolean(call.drawn)}
+            compact={isMinimized ? { onBack: () => navigate(call.returnHref) } : null}
+            onScreenChange={onScreenChange}
             onJoined={onJoined}
             onLeft={onLeft}
             onFailure={onFailure}
@@ -317,7 +322,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             backup={call.backup ? { switchTo: switchToBackup, url: call.backup.url ?? null } : undefined}
             overlay={isMinimized ? null : overlay}
           />
-          {isMinimized ? (
+          {isMinimized && !drawnInUse ? (
             <div className="ve-dock__bar">
               <button type="button" className="ve-dock__btn" onClick={() => navigate(call.returnHref)}>
                 {labels.dockBack}

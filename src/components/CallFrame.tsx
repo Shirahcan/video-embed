@@ -89,6 +89,13 @@ export interface CallFrameProps {
    */
   drawn?: boolean;
   /**
+   * Draw the call small (the corner window, P3b): given only while minimised. Ignored on the
+   * standard screen, which has its own layout.
+   */
+  compact?: { onBack: () => void } | null;
+  /** Which screen this device is on, as it changes (a host hides its own bar when the drawn one has controls). */
+  onScreenChange?: (screen: CallScreen) => void;
+  /**
    * The last rescue: when the room cannot be fixed, offer a matching meeting on the product's
    * backup account. With `url` set (someone already switched), everyone on the call is told.
    * Absent = no backup is offered.
@@ -150,7 +157,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, continuity = false, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
   // Call continuity: one id per browser, and what to do about the person's other device.
   const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
   // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
@@ -308,6 +315,13 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
 
   // Which screen draws the call. Decided once per frame by the device; a fallback only ever goes to Prebuilt.
   const [screen, setScreen] = useState<CallScreen>(() => chooseCallScreen(drawn));
+  const onScreenRef = useRef(onScreenChange);
+  useEffect(() => {
+    onScreenRef.current = onScreenChange;
+  }, [onScreenChange]);
+  useEffect(() => {
+    onScreenRef.current?.(screen);
+  }, [screen]);
   // Switching screens tears the call down: its leave is not "you left" (no host prompt, no product onLeft).
   const switchingRef = useRef(false);
   const fallBackToPrebuilt = useCallback(() => {
@@ -510,6 +524,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
             <DrawnStage
               call={frame.call}
               access={frame.access}
+              compact={compact ? { onBack: compact.onBack, clock: frame.state === 'joined' ? <CallTimer startedAt={startedAt} joinedAt={firstJoinedAt} /> : null } : null}
               onLeave={frame.leave}
               setDevices={frame.setDevices}
               onUseStandard={() => {

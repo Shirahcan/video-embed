@@ -160,3 +160,25 @@ describe('the floating window', () => {
     style.remove();
   });
 });
+
+describe('the corner window (compact)', () => {
+  it('draws the call small with Back to the call and the clock, and no full bar', () => {
+    const onBack = vi.fn();
+    const call = new FloatCall();
+    render(
+      <DrawnStage
+        call={call as unknown as DailyCall}
+        compact={{ onBack, clock: <span>12:04</span> }}
+        onLeave={() => {}}
+        onUseStandard={() => {}}
+      />,
+    );
+    expect(screen.getByText('12:04')).toBeTruthy();
+    expect(screen.getByText('Maria')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'More options' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the call' }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Mute' }));
+    expect(call.audio).toEqual([false]);
+  });
+});

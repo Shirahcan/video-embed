@@ -33,6 +33,11 @@ export { drawnPeople, type DrawnPerson };
 
 export interface DrawnStageProps {
   call: DailyCall;
+  /**
+   * The corner window (P3b): the call drawn small, the float's own look, with "Back to the call"
+   * and the call clock, so the corner window, the float and the room share one language.
+   */
+  compact?: { onBack: () => void; clock?: ReactNode } | null;
   /** Leave the call (CallFrame's own leave, so its "Is it over?" and presence follow). */
   onLeave: () => void;
   /** Switch this device to Daily Prebuilt. */
@@ -46,7 +51,7 @@ export interface DrawnStageProps {
   setDevices?: (devices: { audioDeviceId?: string; videoDeviceId?: string }) => void;
 }
 
-export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDevices }: DrawnStageProps) {
+export function DrawnStage({ call, access = null, compact = null, onLeave, onUseStandard, setDevices }: DrawnStageProps) {
   const { labels } = useVideoUi();
   const devices = useDrawnDevices(call, { microphone: labels.microphone, camera: labels.camera, speaker: labels.speaker }, setDevices);
   // The browser refused to play the call's sound (no click on the page yet): one button fixes it.
@@ -159,12 +164,41 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
     }
   }, [call, layersKey]);
 
+  const mainPerson = presenter ? null : others.find((p) => p.id === speakerId) ?? others[0] ?? null;
+  if (compact) {
+    return (
+      <div ref={rootRef} className="ve-drawn ve-drawn--compact">
+        <DrawnFloat
+          className="ve-float--dock"
+          main={mainPerson}
+          presenterScreen={presenter?.screen ?? null}
+          presenterName={presenter?.name ?? ''}
+          self={self}
+          micOff={micOff}
+          camOff={camOff}
+          mirror={mirror}
+          speakingId={speakerId}
+          onMic={() => call.setLocalAudio(micOff)}
+          onCam={() => call.setLocalVideo(camOff)}
+          onBack={compact.onBack}
+          backLabel={labels.drawnDockBack}
+          clock={compact.clock}
+          onLeave={onLeave}
+        />
+        <div className="ve-drawn__sound" hidden ref={soundRef}>
+          {others.map((p) => <Sound key={p.id} track={p.audio} sinkId={devices.speakerId} onBlocked={() => setSoundBlocked(true)} />)}
+          {others.filter((p) => p.screenAudio).map((p) => <Sound key={`${p.id}-screen`} track={p.screenAudio ?? null} sinkId={devices.speakerId} onBlocked={() => setSoundBlocked(true)} />)}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div ref={rootRef} className={cx('ve-drawn', chatOpen && 've-drawn--chat', float.host && 've-drawn--floated')} role="region" aria-label={labels.drawnRegion}>
       {float.host
         ? createPortal(
             <DrawnFloat
-              main={presenter ? null : others.find((p) => p.id === speakerId) ?? others[0] ?? null}
+              main={mainPerson}
               presenterScreen={presenter?.screen ?? null}
               presenterName={presenter?.name ?? ''}
               self={self}

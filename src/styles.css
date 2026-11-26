@@ -431,3 +431,13 @@
 .ve-drawn__floated { position: absolute; inset: 0 0 96px; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #fff; text-align: center; padding: 24px; }
 .ve-drawn__floated-title { margin: 0; font-size: 18px; font-weight: 600; }
 .ve-drawn__floated-detail { margin: 0 0 6px; font-size: 14px; color: var(--ve-control-label); }
+
+/* P3b: the corner window draws the call with the float's look (one visual language). */
+.ve-drawn--compact { position: absolute; inset: 0; min-height: 0; border-radius: 16px; overflow: hidden; }
+.ve-float--dock { position: absolute; inset: 0; }
+.ve-float--dock .ve-float__btn { width: 32px; height: 32px; }
+.ve-float--dock .ve-float__btn svg { width: 16px; height: 16px; }
+.ve-float--dock .ve-float__btn--danger { width: 40px; }
+.ve-float--dock .ve-float__bar { padding: 6px 8px 8px; gap: 8px; }
+.ve-float--dock .ve-float__self { bottom: 52px; right: 12px; width: 28%; }
+.ve-float__clock { position: absolute; top: 10px; left: 10px; z-index: 3; }
