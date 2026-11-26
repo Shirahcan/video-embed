@@ -417,7 +417,17 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       const chose = leaveChosenRef.current || leavingAloneRef.current;
       leavingAloneRef.current = false;
       leaveChosenRef.current = false;
-      if (chose && !endedRef.current && !endingRef.current && !movedRef.current) onLeftCallRef.current?.();
+      const settled = endedRef.current || endingRef.current || movedRef.current;
+      if (chose && !settled) onLeftCallRef.current?.();
+      // The standard screen's own Leave, for a guest: a host ending the call for everyone ALSO takes
+      // them out of it, so ask whether the call is over first; over reads as ended, not as "you left".
+      // (A host is asked 'Is it over?' instead, and picks Leave the call there, below.)
+      else if (!chose && !settled && screen === 'prebuilt' && wasInCall && !onEndForEveryone && onLeftCallRef.current) {
+        void (checkEnded ? checkEnded().catch(() => false) : Promise.resolve(false)).then((over) => {
+          if (over) markEnded('ended');
+          else if (!endedRef.current) onLeftCallRef.current?.();
+        });
+      }
       onLeft?.();
     },
     onDeviceError: (d) => {
@@ -658,6 +668,18 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
                 {endStep === 'left-host' ? labels.rejoin : labels.endCancel}
               </button>
             </div>
+            {endStep === 'left-host' && onLeftCall ? (
+              <button
+                type="button"
+                className={cx('ve-btn ve-btn--quiet', classNames.button)}
+                onClick={() => {
+                  setEndStep('none');
+                  onLeftCallRef.current?.();
+                }}
+              >
+                {labels.drawnLeaveOnly}
+              </button>
+            ) : null}
             {endStep === 'left-host' ? <p className="ve-overlay__fine">{labels.leftKeepOpen}</p> : null}
           </div>
         ) : null}

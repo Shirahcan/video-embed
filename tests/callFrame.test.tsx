@@ -316,6 +316,43 @@ describe('CallFrame', () => {
     expect(onEnd).not.toHaveBeenCalled();
   });
 
+  it('takes a guest who leaves the standard screen to the product (onLeftCall) once the call is not over', async () => {
+    const onLeftCall = vi.fn();
+    const onEnded = vi.fn();
+    render(<CallFrame url="https://shirah.daily.co/room?t=GUEST" checkEnded={() => Promise.resolve(false)} onEnded={onEnded} onLeftCall={onLeftCall} />);
+    await waitFor(() => expect(frames.length).toBe(1));
+    act(() => latest().emit('joined-meeting'));
+    act(() => latest().emit('left-meeting'));
+    await waitFor(() => expect(onLeftCall).toHaveBeenCalledTimes(1));
+    expect(onEnded).not.toHaveBeenCalled();
+  });
+
+  it('reads a guest taken out of the standard screen by a host ending it as ended, not as leaving', async () => {
+    const onLeftCall = vi.fn();
+    const onEnded = vi.fn();
+    render(<CallFrame url="https://shirah.daily.co/room?t=GUEST" checkEnded={() => Promise.resolve(true)} onEnded={onEnded} onLeftCall={onLeftCall} />);
+    await waitFor(() => expect(frames.length).toBe(1));
+    act(() => latest().emit('joined-meeting'));
+    act(() => latest().emit('left-meeting'));
+    await waitFor(() => expect(onEnded).toHaveBeenCalledWith('ended'));
+    expect(onLeftCall).not.toHaveBeenCalled();
+  });
+
+  it("offers a host who left the standard screen 'Leave the call', which goes to the product", async () => {
+    const onLeftCall = vi.fn();
+    const onEnd = vi.fn().mockResolvedValue(undefined);
+    render(<CallFrame url="https://shirah.daily.co/room?t=HOST" onEndForEveryone={onEnd} onLeftCall={onLeftCall} />);
+    await waitFor(() => expect(frames.length).toBe(1));
+    act(() => latest().emit('joined-meeting'));
+    act(() => latest().emit('left-meeting'));
+    expect(await screen.findByText('You left the call. Is it over?')).toBeTruthy();
+    expect(onLeftCall).not.toHaveBeenCalled();
+    act(() => screen.getByRole('button', { name: 'Leave the call' }).click());
+    expect(onLeftCall).toHaveBeenCalledTimes(1);
+    expect(onEnd).not.toHaveBeenCalled();
+    expect(screen.queryByText('You left the call. Is it over?')).toBeNull();
+  });
+
   it('never offers ending to a guest, and reads a removal the product calls ended as ended', async () => {
     const fetchFreshUrl = vi.fn();
     const onEnded = vi.fn();
