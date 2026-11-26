@@ -70,7 +70,11 @@ export interface UseDailyFrameOptions {
 }
 
 /** Where this person stands in the room: `lobby` = waiting to be let in (nobody can see them yet). */
-export type CallAccess = 'full' | 'lobby' | null;
+/**
+ * This person's access (drawn mode). `asking`: they knocked and wait for a host; `denied`: a host
+ * said no. Prebuilt runs its own lobby and leaves this null.
+ */
+export type CallAccess = 'full' | 'lobby' | 'asking' | 'denied' | null;
 
 export interface UseDailyFrameResult {
   state: FrameState;
@@ -196,16 +200,59 @@ export function useDailyFrame({
         }
         frameRef.current = frame;
         setCall(frame);
+        // A knock from the drawn screen (P2d): requestAccess, then wait for a host's answer.
+        let knock: 'none' | 'asking' | 'denied' | 'admitted' = 'none';
         const readAccess = (): CallAccess => {
           try {
             const level = (frame.accessState?.() as { access?: { level?: string } } | undefined)?.access?.level;
-            const next: CallAccess = level === 'lobby' ? 'lobby' : level === 'full' ? 'full' : null;
+            let next: CallAccess = level === 'lobby' ? 'lobby' : level === 'full' ? 'full' : null;
+            if (knock === 'denied') next = 'denied';
+            else if (next === 'lobby' && knock === 'asking') next = 'asking';
             setAccess(next);
+            // Let in: the call they were already connected to now carries them in full.
+            if (next === 'full' && knock === 'asking') {
+              knock = 'admitted';
+              setState('joined');
+              syncParticipants();
+              handlersRef.current.onJoined?.();
+            }
             return next;
           } catch {
             /* torn down */
             return null;
           }
+        };
+        const askToJoin = () => {
+          if (typeof frame.requestAccess !== 'function') {
+            handlersRef.current.onLobby?.();
+            return;
+          }
+          knock = 'asking';
+          setAccess('asking');
+          void Promise.resolve()
+            .then(() => {
+              // Daily refuses a knock without a name: the given one, else the call's, else "Guest".
+              let callName = '';
+              try {
+                callName = (frame.participants()?.local?.user_name ?? '').trim();
+              } catch {
+                /* torn down */
+              }
+              return frame.requestAccess({ access: { level: 'full' }, name: nameRef.current?.trim() || callName || 'Guest' });
+            })
+            .then((answer) => {
+              if (answer.granted) {
+                readAccess();
+              } else {
+                knock = 'denied';
+                setAccess('denied');
+              }
+            })
+            .catch(() => {
+              // Knocking failed (an old daily-js, a room without a lobby): Prebuilt runs the knock instead.
+              knock = 'none';
+              handlersRef.current.onLobby?.();
+            });
         };
 
         const syncParticipants = () => {
@@ -232,7 +279,7 @@ export function useDailyFrame({
           .on('joined-meeting', () => {
             if (readAccess() === 'lobby' && mode === 'drawn') {
               setState('ready');
-              handlersRef.current.onLobby?.();
+              askToJoin();
               return;
             }
             setState('joined');
@@ -240,6 +287,8 @@ export function useDailyFrame({
             handlersRef.current.onJoined?.();
           })
           .on('left-meeting', () => {
+            // A refused knock ends Daily's meeting too, but the person never was in the call.
+            if (knock === 'denied') return;
             setState('left');
             handlersRef.current.onParticipantsChange?.([]);
             handlersRef.current.onLeft?.();
@@ -278,6 +327,13 @@ export function useDailyFrame({
             handlersRef.current.onDeviceError?.(diagnosis);
           })
           .on('error', (event) => {
+            // Daily ends a refused knock as an error ("Join request rejected"): that is the host's
+            // answer, not a broken call, so the stage says so instead of falling back.
+            if (knock === 'asking' || knock === 'denied') {
+              knock = 'denied';
+              setAccess('denied');
+              return;
+            }
             reported = true;
             const f = classifyCallError(event);
             setFailure(f);

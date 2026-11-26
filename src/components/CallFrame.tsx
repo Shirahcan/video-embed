@@ -325,7 +325,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     enabled: enabled && !tab.heldElsewhere && continuityStep === 'clear',
     startQuiet: joinQuiet,
     mode: screen,
-    // The drawn screen cannot knock yet: Prebuilt runs the knock for a person left waiting.
+    // The drawn screen knocks itself (P2d); only a knock it cannot make falls back to Prebuilt's.
     onLobby: fallBackToPrebuilt,
     onJoined: () => {
       switchingRef.current = false;
@@ -449,7 +449,11 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
 
   return (
     <div className={cx('ve-call', className)} style={style}>
-      <KnockBar waiting={frame.waiting} />
+      <KnockBar
+        waiting={frame.waiting}
+        // On the drawn screen there is no Daily request to click: the host lets people in from here.
+        onAnswer={screen === 'drawn' && frame.call ? (id, letIn) => void frame.call?.updateWaitingParticipant(id, { grantRequestedAccess: letIn }).catch(() => {}) : undefined}
+      />
 
       {frame.deviceError && !deviceBannerHidden ? (
         <div className="ve-banner" role="status">
@@ -467,7 +471,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
 
       {scheduledEnd && !ended && frame.state === 'joined' ? <ScheduledEndCue scheduledEnd={scheduledEnd} action={endCueAction} /> : null}
 
-      {frame.state === 'ready' && prejoinLong ? (
+      {frame.state === 'ready' && prejoinLong && frame.access !== 'asking' && frame.access !== 'denied' ? (
         <p className="ve-hint ve-hint--warn ve-prejoin-hint" role="status">{screen === 'drawn' ? labels.drawnPermissionHint : labels.prejoinPermissionHint}</p>
       ) : null}
 
@@ -505,6 +509,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
           <DrawnStageBoundary onCrash={fallBackToPrebuilt}>
             <DrawnStage
               call={frame.call}
+              access={frame.access}
               onLeave={frame.leave}
               setDevices={frame.setDevices}
               onUseStandard={() => {

@@ -69,6 +69,12 @@ export interface VideoLabels {
   knockingOne: (name: string) => string;
   knockingMany: (count: number) => string;
   knockingHint: string;
+  /** The host's answer on the drawn screen, and who a nameless knocker is. */
+  knockLetIn: string;
+  /** The title over one person's Let in / Deny row (their name is on the row). */
+  knockAnswerOne: string;
+  knockDeny: string;
+  knockSomeone: string;
   // Ask to join by an anyone-link (AskToJoin), and the host letting them in (JoinRequestBar)
   askTitle: string;
   askIntro: string;
@@ -139,6 +145,25 @@ export interface VideoLabels {
   drawnSoundBlocked: string;
   drawnHearCall: string;
   drawnDismiss: string;
+  /** The knocker's side on the drawn screen. */
+  drawnAsking: string;
+  drawnAskingDetail: string;
+  drawnDenied: string;
+  drawnDeniedDetail: string;
+  /** P2d chat. */
+  drawnChat: string;
+  drawnChatShort: string;
+  drawnChatUnread: (count: number) => string;
+  drawnChatTitle: string;
+  drawnChatNote: string;
+  drawnChatEmpty: string;
+  drawnChatPlaceholder: string;
+  drawnChatSend: string;
+  drawnChatClose: string;
+  /** P2d connection. */
+  drawnReconnecting: string;
+  drawnWeak: string;
+  drawnWeakVideoOff: string;
   heldElsewhereDetail: string;
   moveCallHere: string;
   // Call continuity: the same person on another device (InCallElsewhere)
@@ -431,6 +456,10 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   knockingOne: (name) => `${name || 'Someone'} is asking to join`,
   knockingMany: (count) => `${count} people are asking to join`,
   knockingHint: 'Let them in from the request shown inside the call.',
+  knockLetIn: 'Let in',
+  knockAnswerOne: 'Someone wants to join this call',
+  knockDeny: 'Deny',
+  knockSomeone: 'Someone',
   askTitle: 'Ask to join this call',
   askIntro: 'Tell the host who you are. They will let you in from the call.',
   askName: 'Your name',
@@ -489,6 +518,22 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnSoundBlocked: 'Your browser is holding back the call sound until you click on the page.',
   drawnHearCall: 'Hear the call',
   drawnDismiss: 'Dismiss',
+  drawnAsking: 'Asking to join',
+  drawnAskingDetail: 'The host has been told you are here and will let you in shortly.',
+  drawnDenied: 'The host did not let you in',
+  drawnDeniedDetail: 'If you think this is a mistake, contact them and ask for a new link.',
+  drawnChat: 'Chat with everyone',
+  drawnChatShort: 'Chat',
+  drawnChatUnread: (count) => `Chat with everyone, ${count} new ${count === 1 ? 'message' : 'messages'}`,
+  drawnChatTitle: 'In-call messages',
+  drawnChatNote: 'Everyone in the call sees these. They are not kept after the call ends.',
+  drawnChatEmpty: 'No messages yet.',
+  drawnChatPlaceholder: 'Send a message to everyone',
+  drawnChatSend: 'Send',
+  drawnChatClose: 'Close chat',
+  drawnReconnecting: 'Your connection dropped. Reconnecting...',
+  drawnWeak: 'Your connection is weak. Turning off your video keeps the sound clear.',
+  drawnWeakVideoOff: 'Turn off video',
   drawnDeviceFailed: (label, kept) => `${label || 'That device'} would not start (another app may be using it)${kept ? `, so the call kept ${kept}` : ''}.`,
   heldElsewhereDetail: 'Joining twice from one device makes both microphones live, which causes echo for everyone else. Switch back to the other tab, or move the call here.',
   moveCallHere: 'Move the call here',

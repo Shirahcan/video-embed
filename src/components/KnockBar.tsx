@@ -32,10 +32,17 @@ export function chime() {
  * pasted link, without a pass). Daily's own request inside the call is small and easy to miss;
  * this sits above the call, names them and chimes.
  *
- * ⚠ It does not admit. With Daily Prebuilt, admitting is only possible from Daily's own request
- * in the frame (updateWaitingParticipant is call-object-only), so the bar says where to click.
+ * With Daily Prebuilt it does not admit: that is only possible from Daily's own request in the
+ * frame (updateWaitingParticipant is call-object-only), so the bar says where to click. With the
+ * drawn screen (`onAnswer`), each person gets Let in / Deny right here.
  */
-export function KnockBar({ waiting, sound = true, className }: { waiting: WaitingPerson[]; sound?: boolean; className?: string }) {
+export function KnockBar({ waiting, sound = true, onAnswer, className }: {
+  waiting: WaitingPerson[];
+  sound?: boolean;
+  /** Admit (true) or turn away (false) one person; given only where the page itself can admit. */
+  onAnswer?: (id: string, letIn: boolean) => void;
+  className?: string;
+}) {
   const { labels, classNames } = useVideoUi();
   const heard = useRef(0);
 
@@ -49,16 +56,36 @@ export function KnockBar({ waiting, sound = true, className }: { waiting: Waitin
   return (
     <div className={cx('ve-knock', classNames.knockBar, className)} role="alert">
       <p className="ve-knock__title">
-        {waiting.length === 1 ? labels.knockingOne(waiting[0]?.name ?? '') : labels.knockingMany(waiting.length)}
+        {waiting.length > 1 ? labels.knockingMany(waiting.length) : onAnswer ? labels.knockAnswerOne : labels.knockingOne(waiting[0]?.name ?? '')}
       </p>
-      {waiting.length > 1 ? (
-        <ul className="ve-knock__list">
+      {onAnswer ? (
+        <ul className="ve-knock__list ve-knock__list--answer">
           {waiting.map((p) => (
-            <li key={p.id} className="ve-knock__name">{p.name || '...'}</li>
+            <li key={p.id} className="ve-knock__row">
+              <span className="ve-knock__name">{p.name || labels.knockSomeone}</span>
+              <span className="ve-knock__actions">
+                <button type="button" className={cx('ve-btn', classNames.button)} onClick={() => onAnswer(p.id, false)}>
+                  {labels.knockDeny}
+                </button>
+                <button type="button" className={cx('ve-btn ve-btn--primary', classNames.button, classNames.buttonPrimary)} onClick={() => onAnswer(p.id, true)}>
+                  {labels.knockLetIn}
+                </button>
+              </span>
+            </li>
           ))}
         </ul>
-      ) : null}
-      <p className="ve-knock__hint">{labels.knockingHint}</p>
+      ) : (
+        <>
+          {waiting.length > 1 ? (
+            <ul className="ve-knock__list">
+              {waiting.map((p) => (
+                <li key={p.id} className="ve-knock__name">{p.name || '...'}</li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="ve-knock__hint">{labels.knockingHint}</p>
+        </>
+      )}
     </div>
   );
 }

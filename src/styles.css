@@ -340,3 +340,49 @@
 @container (max-width: 520px) { .ve-drawn__bar { gap: 8px; padding: 8px 10px 6px; } .ve-ctl { min-width: 44px; } }
 @media (max-height: 640px) { .ve-drawn { --ve-control-size: 40px; } .ve-tile--self { bottom: 92px; } }
 @media (prefers-reduced-motion: reduce) { .ve-tile::after { transition: none; } .ve-ctl__disc { transition: none; } .ve-ctl:active .ve-ctl__disc { transform: none; } }
+
+/* P2d: knocking from the drawn screen, and the host's answer on the knock bar. */
+.ve-drawn__knock { position: absolute; inset: 0 0 96px; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 24px; text-align: center;
+  background: color-mix(in srgb, var(--ve-stage) 82%, transparent); backdrop-filter: blur(6px); }
+.ve-drawn__knock-title { margin: 0; font-size: 20px; font-weight: 600; color: #fff; }
+.ve-drawn__knock-detail { margin: 0; max-width: 420px; font-size: 14px; line-height: 1.5; color: var(--ve-control-label); }
+.ve-drawn__knock-pulse { width: 14px; height: 14px; margin-bottom: 6px; border-radius: 999px; background: var(--ve-accent); box-shadow: 0 0 0 0 color-mix(in srgb, var(--ve-accent) 60%, transparent); animation: ve-knock-pulse 1.6s ease-out infinite; }
+@keyframes ve-knock-pulse { to { box-shadow: 0 0 0 18px transparent; } }
+@media (prefers-reduced-motion: reduce) { .ve-drawn__knock-pulse { animation: none; } }
+.ve-knock__list--answer { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ve-knock__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ve-knock__actions { display: inline-flex; gap: 8px; }
+
+/* P2d chat: a panel over the right of the stage (never shrinking the call), and the unread badge. */
+.ve-ctl-badged { position: relative; display: inline-flex; }
+.ve-ctl-badge { position: absolute; top: -4px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ve-accent); color: #fff; font-size: 11px; font-weight: 700; border: 2px solid var(--ve-stage); pointer-events: none; }
+.ve-chat { position: absolute; top: 12px; right: 12px; bottom: 96px; z-index: 5; width: min(340px, calc(100% - 24px)); display: flex; flex-direction: column;
+  border-radius: 20px; background: var(--ve-surface, #fff); color: var(--ve-ink, #0f172a); box-shadow: 0 20px 50px rgb(0 0 0 / 0.35); overflow: hidden; }
+.ve-chat__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 12px 4px 18px; }
+.ve-chat__title { margin: 0; font-size: 16px; font-weight: 600; }
+.ve-chat__close { width: 34px; height: 34px; border: 0; border-radius: 999px; background: transparent; color: inherit; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; outline: none; }
+.ve-chat__close:hover, .ve-chat__close:focus-visible { background: color-mix(in srgb, var(--ve-accent) 10%, transparent); }
+.ve-chat__note { margin: 0 18px 8px; font-size: 12px; line-height: 1.4; color: var(--ve-ink-muted); }
+.ve-chat__list { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 4px 18px 12px; display: flex; flex-direction: column; gap: 12px; }
+.ve-chat__empty { margin: auto; font-size: 13px; color: var(--ve-ink-muted); }
+.ve-chat__msg { display: flex; flex-direction: column; gap: 2px; }
+.ve-chat__who { display: flex; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 600; }
+.ve-chat__when { font-size: 11px; font-weight: 400; color: var(--ve-ink-muted); }
+.ve-chat__text { font-size: 14px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ve-chat__msg--mine .ve-chat__who { color: var(--ve-accent); }
+.ve-chat__form { display: flex; align-items: flex-end; gap: 8px; margin: 0 12px 12px; padding: 6px 6px 6px 14px; border-radius: 20px; background: var(--ve-surface-muted, #f1f5f9); }
+.ve-chat__input { flex: 1; min-height: 24px; max-height: 120px; resize: none; padding: 6px 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: 14px; outline: none; field-sizing: content; }
+.ve-chat__send { flex: none; width: 36px; height: 36px; border: 0; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--ve-accent); color: #fff; cursor: pointer; outline: none; }
+.ve-chat__send:disabled { opacity: 0.4; cursor: default; }
+.ve-chat__send:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ve-accent) 40%, transparent); }
+
+/* P2d connection notes. */
+.ve-drawn__notice-btn--quiet { background: transparent; color: var(--ve-control-label); }
+.ve-drawn__notice-btn--quiet:hover { background: rgb(255 255 255 / 0.12); }
+.ve-drawn__spinner { width: 14px; height: 14px; flex: none; border-radius: 999px; border: 2px solid rgb(255 255 255 / 0.3); border-top-color: #fff; animation: ve-spin 0.9s linear infinite; }
+@keyframes ve-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ve-drawn__spinner { animation: none; } }
+
+/* With the chat open, your own corner tile moves clear of it. */
+.ve-drawn--chat .ve-tile--self { right: calc(min(340px, 100% - 24px) + 24px); }

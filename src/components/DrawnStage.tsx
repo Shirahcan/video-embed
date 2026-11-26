@@ -1,11 +1,15 @@
 import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
-import { CameraIcon, CameraOffIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, StandardScreenIcon } from './icons';
+import { CameraIcon, CameraOffIcon, ChatIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, StandardScreenIcon } from './icons';
+import { DrawnChatPanel } from './DrawnChatPanel';
+import { useDrawnChat } from '../drawnChat';
+import { useDrawnNetwork } from '../drawnNetwork';
 import { chooseDrawnLayout, drawnPeople, fitTiles, presenterOf, receiveLayers, type DrawnPerson } from '../drawnLayout';
 import { ShareTile, Sound, Tile } from './DrawnTile';
 import { DrawnDeviceMenu } from './DrawnDeviceMenu';
 import { useDrawnDevices } from '../drawnDevices';
+import type { CallAccess } from '../hooks/useDailyFrame';
 
 export { drawnPeople, type DrawnPerson };
 
@@ -52,6 +56,8 @@ export interface DrawnStageProps {
   onLeave: () => void;
   /** Switch this device to Daily Prebuilt. */
   onUseStandard: () => void;
+  /** This person's access: while `asking` or `denied` the stage says so instead of the call. */
+  access?: CallAccess;
   /**
    * Switch microphone / camera (the frame's setDevices). A blocked or busy device is said ABOVE the
    * call by CallFrame, with "Having trouble?"; the stage does not repeat it.
@@ -59,11 +65,20 @@ export interface DrawnStageProps {
   setDevices?: (devices: { audioDeviceId?: string; videoDeviceId?: string }) => void;
 }
 
-export function DrawnStage({ call, onLeave, onUseStandard, setDevices }: DrawnStageProps) {
+export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDevices }: DrawnStageProps) {
   const { labels } = useVideoUi();
   const devices = useDrawnDevices(call, { microphone: labels.microphone, camera: labels.camera, speaker: labels.speaker }, setDevices);
   // The browser refused to play the call's sound (no click on the page yet): one button fixes it.
   const [soundBlocked, setSoundBlocked] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const connection = useDrawnNetwork(call);
+  // The weak-connection offer is answered once per drop; a good spell lets it come back.
+  const [weakDismissed, setWeakDismissed] = useState(false);
+  const [lastConnection, setLastConnection] = useState(connection);
+  if (connection !== lastConnection) {
+    setLastConnection(connection);
+    if (connection === 'ok') setWeakDismissed(false);
+  }
   const soundRef = useRef<HTMLDivElement>(null);
   const hearCall = () => {
     const els = [...(soundRef.current?.querySelectorAll('audio') ?? [])];
@@ -138,6 +153,7 @@ export function DrawnStage({ call, onLeave, onUseStandard, setDevices }: DrawnSt
 
   const self = people.find((p) => p.local) ?? null;
   const others = people.filter((p) => !p.local);
+  const chat = useDrawnChat(call, self?.name ?? '', chatOpen);
   const micOff = self ? !self.audioOn : false;
   const camOff = self ? !self.videoOn : false;
   const layout = chooseDrawnLayout(people);
@@ -164,7 +180,7 @@ export function DrawnStage({ call, onLeave, onUseStandard, setDevices }: DrawnSt
   }, [call, layersKey]);
 
   return (
-    <div className="ve-drawn" role="region" aria-label={labels.drawnRegion}>
+    <div className={cx('ve-drawn', chatOpen && 've-drawn--chat')} role="region" aria-label={labels.drawnRegion}>
       {layout === 'share' && presenter?.screen ? (
         <div className="ve-drawn__share" data-layout="share">
           <ShareTile track={presenter.screen} label={labels.drawnPresenting(presenter.name || '?')} />
@@ -194,8 +210,29 @@ export function DrawnStage({ call, onLeave, onUseStandard, setDevices }: DrawnSt
         {others.map((p) => <Sound key={p.id} track={p.audio} sinkId={devices.speakerId} onBlocked={() => setSoundBlocked(true)} />)}
       </div>
 
-      {soundBlocked || notice ? (
+      {access === 'asking' || access === 'denied' ? (
+        <div className="ve-drawn__knock" role="status" aria-live="polite">
+          {access === 'asking' ? <span className="ve-drawn__knock-pulse" aria-hidden="true" /> : null}
+          <p className="ve-drawn__knock-title">{access === 'asking' ? labels.drawnAsking : labels.drawnDenied}</p>
+          <p className="ve-drawn__knock-detail">{access === 'asking' ? labels.drawnAskingDetail : labels.drawnDeniedDetail}</p>
+        </div>
+      ) : null}
+
+      {soundBlocked || notice || connection !== 'ok' ? (
         <div className="ve-drawn__notices">
+          {connection === 'reconnecting' ? (
+            <p className="ve-drawn__notice ve-drawn__notice--warn" role="status">
+              <span className="ve-drawn__spinner" aria-hidden="true" />
+              <span>{labels.drawnReconnecting}</span>
+            </p>
+          ) : null}
+          {connection === 'weak' && !weakDismissed && !camOff ? (
+            <p className="ve-drawn__notice" role="status">
+              <span>{labels.drawnWeak}</span>
+              <button type="button" className="ve-drawn__notice-btn" onClick={() => { call.setLocalVideo(false); setWeakDismissed(true); }}>{labels.drawnWeakVideoOff}</button>
+              <button type="button" className="ve-drawn__notice-btn ve-drawn__notice-btn--quiet" onClick={() => setWeakDismissed(true)}>{labels.drawnDismiss}</button>
+            </p>
+          ) : null}
           {soundBlocked ? (
             <p className="ve-drawn__notice ve-drawn__notice--warn" role="alert">
               <span>{labels.drawnSoundBlocked}</span>
@@ -210,6 +247,8 @@ export function DrawnStage({ call, onLeave, onUseStandard, setDevices }: DrawnSt
           ) : null}
         </div>
       ) : null}
+
+      {chatOpen ? <DrawnChatPanel messages={chat.messages} onSend={chat.send} onClose={() => setChatOpen(false)} /> : null}
 
       <div className="ve-drawn__bar" role="toolbar" aria-label={labels.drawnControls}>
         <DrawnDeviceMenu
@@ -245,6 +284,16 @@ export function DrawnStage({ call, onLeave, onUseStandard, setDevices }: DrawnSt
             icon={camOff ? <CameraOffIcon /> : <CameraIcon />}
           />
         </DrawnDeviceMenu>
+        <span className="ve-ctl-badged">
+          <Control
+            label={labels.drawnChatShort}
+            ariaLabel={chat.unread > 0 ? labels.drawnChatUnread(chat.unread) : labels.drawnChat}
+            pressed={chatOpen}
+            onClick={() => setChatOpen((o) => !o)}
+            icon={<ChatIcon />}
+          />
+          {chat.unread > 0 ? <span className="ve-ctl-badge" aria-hidden="true">{chat.unread > 9 ? '9+' : chat.unread}</span> : null}
+        </span>
         <span className="ve-drawn__menu" ref={menuRef}>
           <Control
             label={labels.drawnMoreShort}

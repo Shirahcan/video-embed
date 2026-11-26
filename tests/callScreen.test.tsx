@@ -32,6 +32,17 @@ class FakeCall {
   accessState() {
     return { access: { level: this.level } };
   }
+  /** The host's answer to a knock: resolve it from the test (undefined = this daily-js cannot knock). */
+  answer: ((granted: boolean) => void) | null = null;
+  knockedAs: string | null = null;
+  requestAccess?: (o: { name: string }) => Promise<{ access: { level: string }; granted: boolean }> = (o) =>
+    new Promise((resolve) => {
+      this.knockedAs = o.name;
+      this.answer = (granted) => {
+        if (granted) this.level = 'full';
+        resolve({ access: { level: this.level }, granted });
+      };
+    });
   participants() {
     if (this.throwOnParticipants) throw new Error('drawing broke');
     return this.people;
@@ -129,8 +140,56 @@ describe('which call screen a device gets', () => {
     await waitFor(() => expect(latest().joins[0]).toEqual({ url: URL_WITH_PASS }));
   });
 
-  it('hands a person left in the lobby to the standard screen, which runs the knock, without counting them as joined', async () => {
+  it('knocks from the drawn screen when the person lands in the lobby, and is not joined until let in', async () => {
     nextObject = { level: 'lobby' };
+    const onJoined = vi.fn();
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onJoined={onJoined} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    act(() => latest().emit('joined-meeting'));
+    expect(await screen.findByText('Asking to join')).toBeTruthy();
+    expect(latest().kind).toBe('object');
+    // No name given: Daily refuses a nameless knock, so it goes under the call's own name.
+    expect(latest().knockedAs).toBe('Ada');
+    expect(onJoined).not.toHaveBeenCalled();
+
+    await act(async () => {
+      latest().answer?.(true);
+    });
+    act(() => latest().emit('access-state-updated'));
+    await waitFor(() => expect(onJoined).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('Asking to join')).toBeNull();
+  });
+
+  it('tells a knocker the host did not let them in', async () => {
+    nextObject = { level: 'lobby' };
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    act(() => latest().emit('joined-meeting'));
+    await screen.findByText('Asking to join');
+    await act(async () => {
+      latest().answer?.(false);
+    });
+    expect(await screen.findByText('The host did not let you in')).toBeTruthy();
+  });
+
+  it("keeps the drawn screen when Daily ends a refused knock as an error, and does not count it as leaving", async () => {
+    nextObject = { level: 'lobby' };
+    const onLeft = vi.fn();
+    const onFailure = vi.fn();
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onLeft={onLeft} onFailure={onFailure} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    act(() => latest().emit('joined-meeting'));
+    await screen.findByText('Asking to join');
+    act(() => latest().emit('error', { action: 'error', errorMsg: 'Join request rejected' }));
+    act(() => latest().emit('left-meeting'));
+    expect(await screen.findByText('The host did not let you in')).toBeTruthy();
+    expect(latest().kind).toBe('object');
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(onLeft).not.toHaveBeenCalled();
+  });
+
+  it('hands the knock to the standard screen where this daily-js cannot knock, without counting them as joined', async () => {
+    nextObject = { level: 'lobby', requestAccess: undefined };
     const onJoined = vi.fn();
     render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onJoined={onJoined} />);
     await waitFor(() => expect(latest().joins).toHaveLength(1));
@@ -139,6 +198,17 @@ describe('which call screen a device gets', () => {
     expect(onJoined).not.toHaveBeenCalled();
     // Not remembered: the next call may be drawn again.
     expect(window.localStorage.getItem(STANDARD_SCREEN_KEY)).toBeNull();
+  });
+
+  it("lets the host answer a knock on the drawn screen, where Daily's own request is absent", async () => {
+    const answered: Array<[string, unknown]> = [];
+    nextObject = { updateWaitingParticipant: (id: string, u: unknown) => { answered.push([id, u]); return Promise.resolve({ id }); } } as never;
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    act(() => latest().emit('joined-meeting'));
+    act(() => latest().emit('waiting-participant-added', { participant: { id: 'w1', name: 'Maria' } }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Let in' }));
+    expect(answered).toEqual([['w1', { grantRequestedAccess: true }]]);
   });
 
   it('falls back to the standard screen when the drawn call fails before the person gets in', async () => {
