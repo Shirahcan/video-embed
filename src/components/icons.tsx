@@ -180,3 +180,22 @@ export function MirrorIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function PopOutIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <rect x="12" y="11" width="7" height="6" rx="1" />
+    </Icon>
+  );
+}
+
+export function BackToTabIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M15 9 9 15" />
+      <path d="M9 10v5h5" />
+    </Icon>
+  );
+}

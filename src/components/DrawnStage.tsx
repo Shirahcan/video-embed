@@ -1,9 +1,14 @@
-import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode } from 'react';
+import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode, useCallback } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
-import { BlurIcon, MirrorIcon, CameraIcon, CameraOffIcon, ChatIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, NoiseIcon, PresentIcon, StandardScreenIcon } from './icons';
+import { BlurIcon, MirrorIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, LeaveIcon, MicIcon, MicOffIcon, NoiseIcon, PresentIcon } from './icons';
 import { PRESENT_OPTIONS, useDrawnEffects } from '../drawnEffects';
 import { prefersMirroredSelf, setMirroredSelf } from '../callScreen';
+import { createPortal } from 'react-dom';
+import { useDrawnFloat } from '../drawnFloat';
+import { DrawnFloat } from './DrawnFloat';
+import { Control } from './DrawnControl';
+import { DrawnMoreMenu } from './DrawnMoreMenu';
 import { DrawnChatPanel } from './DrawnChatPanel';
 import { useDrawnChat } from '../drawnChat';
 import { useDrawnNetwork } from '../drawnNetwork';
@@ -25,32 +30,6 @@ export { drawnPeople, type DrawnPerson };
  * never move, so it never pauses.
  */
 /** A round icon button with its short label underneath (the call's control bar). */
-function Control({ label, ariaLabel, icon, onClick, pressed, expanded, off = false, danger = false }: {
-  label: string;
-  ariaLabel: string;
-  icon: ReactNode;
-  onClick: () => void;
-  pressed?: boolean;
-  expanded?: boolean;
-  off?: boolean;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      className={cx('ve-ctl', off && 've-ctl--off', danger && 've-ctl--danger')}
-      aria-label={ariaLabel}
-      title={ariaLabel}
-      aria-pressed={pressed}
-      aria-expanded={expanded}
-      aria-haspopup={expanded === undefined ? undefined : 'menu'}
-      onClick={onClick}
-    >
-      <span className="ve-ctl__disc">{icon}</span>
-      <span className="ve-ctl__label" aria-hidden="true">{label}</span>
-    </button>
-  );
-}
 
 export interface DrawnStageProps {
   call: DailyCall;
@@ -76,6 +55,8 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
   const connection = useDrawnNetwork(call);
   const effects = useDrawnEffects(call);
   const [mirror, setMirror] = useState(prefersMirroredSelf);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const float = useDrawnFloat(useCallback(() => rootRef.current, []));
   const toggleMirror = () => {
     setMirroredSelf(!mirror);
     setMirror(!mirror);
@@ -100,9 +81,6 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
     return () => clearTimeout(t);
   }, [notice, dismissNotice]);
   const [people, setPeople] = useState<DrawnPerson[]>(() => drawnPeople(call.participants() as Record<string, DailyParticipant>));
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLSpanElement>(null);
-  const standardDetailId = useId();
   // Who is speaking now (Daily's active speaker), for the ring on their tile.
   const [speakerId, setSpeakerId] = useState<string | null>(null);
   // The stage's inner size, so the tiles are fitted to it (as Meet does), not stretched by a grid.
@@ -142,22 +120,6 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
     };
   }, [call]);
 
-  // The menu closes on Escape and on a click anywhere else.
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
-    };
-    const onDown = (e: PointerEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('pointerdown', onDown);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('pointerdown', onDown);
-    };
-  }, [menuOpen]);
 
   const self = people.find((p) => p.local) ?? null;
   const others = people.filter((p) => !p.local);
@@ -198,7 +160,37 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
   }, [call, layersKey]);
 
   return (
-    <div className={cx('ve-drawn', chatOpen && 've-drawn--chat')} role="region" aria-label={labels.drawnRegion}>
+    <div ref={rootRef} className={cx('ve-drawn', chatOpen && 've-drawn--chat', float.host && 've-drawn--floated')} role="region" aria-label={labels.drawnRegion}>
+      {float.host
+        ? createPortal(
+            <DrawnFloat
+              main={presenter ? null : others.find((p) => p.id === speakerId) ?? others[0] ?? null}
+              presenterScreen={presenter?.screen ?? null}
+              presenterName={presenter?.name ?? ''}
+              self={self}
+              micOff={micOff}
+              camOff={camOff}
+              mirror={mirror}
+              speakingId={speakerId}
+              onMic={() => call.setLocalAudio(micOff)}
+              onCam={() => call.setLocalVideo(camOff)}
+              onBack={float.close}
+              onLeave={() => {
+                float.close();
+                onLeave();
+              }}
+            />,
+            float.host,
+          )
+        : null}
+      {float.host ? (
+        <div className="ve-drawn__floated" role="status">
+          <PopOutIcon width={28} height={28} />
+          <p className="ve-drawn__floated-title">{labels.drawnFloated}</p>
+          <p className="ve-drawn__floated-detail">{labels.drawnFloatedDetail}</p>
+          <button type="button" className="ve-drawn__notice-btn" onClick={float.close}>{labels.drawnFloatBack}</button>
+        </div>
+      ) : null}
       {layout === 'share' && presenter?.screen ? (
         <div className="ve-drawn__share" data-layout="share">
           <ShareTile track={presenter.screen} label={labels.drawnPresenting(presenter.name || '?')} />
@@ -237,8 +229,14 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
         </div>
       ) : null}
 
-      {soundBlocked || notice || connection !== 'ok' || presenting || effects.failed ? (
+      {soundBlocked || notice || connection !== 'ok' || presenting || effects.failed || float.failed ? (
         <div className="ve-drawn__notices">
+          {float.failed ? (
+            <p className="ve-drawn__notice" role="status">
+              <span>{labels.drawnFloatFailed}</span>
+              <button type="button" className="ve-drawn__notice-btn" onClick={float.dismissFailed}>{labels.drawnDismiss}</button>
+            </p>
+          ) : null}
           {presenting ? (
             <p className="ve-drawn__notice ve-drawn__notice--present" role="status">
               <PresentIcon width={16} height={16} />
@@ -325,6 +323,15 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
             icon={<PresentIcon />}
           />
         ) : null}
+        {float.supported ? (
+          <Control
+            label={float.host ? labels.drawnFloatBack : labels.drawnFloat}
+            ariaLabel={float.host ? labels.drawnFloatBack : labels.drawnFloatLong}
+            pressed={Boolean(float.host)}
+            onClick={() => (float.host ? float.close() : void float.open())}
+            icon={<PopOutIcon />}
+          />
+        ) : null}
         <span className="ve-ctl-badged">
           <Control
             label={labels.drawnChatShort}
@@ -335,65 +342,15 @@ export function DrawnStage({ call, access = null, onLeave, onUseStandard, setDev
           />
           {chat.unread > 0 ? <span className="ve-ctl-badge" aria-hidden="true">{chat.unread > 9 ? '9+' : chat.unread}</span> : null}
         </span>
-        <span className="ve-drawn__menu" ref={menuRef}>
-          <Control
-            label={labels.drawnMoreShort}
-            ariaLabel={labels.drawnMore}
-            expanded={menuOpen}
-            onClick={() => setMenuOpen((o) => !o)}
-            icon={<MoreIcon />}
-          />
-          {menuOpen ? (
-            <span className="ve-drawn__menu-list" role="menu" aria-label={labels.drawnMore}>
-              {effects.support.noise ? (
-                <button type="button" role="menuitemcheckbox" aria-checked={effects.noise} className="ve-drawn__menu-item" onClick={effects.toggleNoise}>
-                  <span className="ve-drawn__menu-icon"><NoiseIcon /></span>
-                  <span className="ve-drawn__menu-text">
-                    <span className="ve-drawn__menu-title">{labels.drawnNoise}</span>
-                    <span className="ve-drawn__menu-detail">{labels.drawnNoiseDetail}</span>
-                  </span>
-                  <span className={cx('ve-switch', effects.noise && 've-switch--on')} aria-hidden="true" />
-                </button>
-              ) : null}
-              {effects.support.blur ? (
-                <button type="button" role="menuitemcheckbox" aria-checked={effects.blur} className="ve-drawn__menu-item" onClick={effects.toggleBlur}>
-                  <span className="ve-drawn__menu-icon"><BlurIcon /></span>
-                  <span className="ve-drawn__menu-text">
-                    <span className="ve-drawn__menu-title">{labels.drawnBlur}</span>
-                    <span className="ve-drawn__menu-detail">{labels.drawnBlurDetail}</span>
-                  </span>
-                  <span className={cx('ve-switch', effects.blur && 've-switch--on')} aria-hidden="true" />
-                </button>
-              ) : null}
-              <button type="button" role="menuitemcheckbox" aria-checked={mirror} className="ve-drawn__menu-item" onClick={toggleMirror}>
-                <span className="ve-drawn__menu-icon"><MirrorIcon /></span>
-                <span className="ve-drawn__menu-text">
-                  <span className="ve-drawn__menu-title">{labels.drawnMirror}</span>
-                  <span className="ve-drawn__menu-detail">{labels.drawnMirrorDetail}</span>
-                </span>
-                <span className={cx('ve-switch', mirror && 've-switch--on')} aria-hidden="true" />
-              </button>
-              <span className="ve-drawn__menu-sep" role="separator" />
-              <button
-                type="button"
-                role="menuitem"
-                className="ve-drawn__menu-item"
-                aria-label={labels.drawnUseStandard}
-                aria-describedby={standardDetailId}
-                onClick={() => {
-                  setMenuOpen(false);
-                  onUseStandard();
-                }}
-              >
-                <span className="ve-drawn__menu-icon"><StandardScreenIcon /></span>
-                <span className="ve-drawn__menu-text">
-                  <span className="ve-drawn__menu-title">{labels.drawnUseStandard}</span>
-                  <span className="ve-drawn__menu-detail" id={standardDetailId}>{labels.drawnUseStandardDetail}</span>
-                </span>
-              </button>
-            </span>
-          ) : null}
-        </span>
+        <DrawnMoreMenu
+          onUseStandard={onUseStandard}
+          switches={[
+            ...(effects.support.noise ? [{ key: 'noise', on: effects.noise, title: labels.drawnNoise, detail: labels.drawnNoiseDetail, icon: <NoiseIcon />, onToggle: effects.toggleNoise }] : []),
+            ...(effects.support.blur ? [{ key: 'blur', on: effects.blur, title: labels.drawnBlur, detail: labels.drawnBlurDetail, icon: <BlurIcon />, onToggle: effects.toggleBlur }] : []),
+            { key: 'mirror', on: mirror, title: labels.drawnMirror, detail: labels.drawnMirrorDetail, icon: <MirrorIcon />, onToggle: toggleMirror },
+            ...(float.supported ? [{ key: 'float', on: float.autoFloat, title: labels.drawnAutoFloat, detail: labels.drawnAutoFloatDetail, icon: <PopOutIcon />, onToggle: float.toggleAuto }] : []),
+          ]}
+        />
         <Control label={labels.drawnLeave} ariaLabel={labels.drawnLeave} danger onClick={onLeave} icon={<LeaveIcon />} />
       </div>
     </div>

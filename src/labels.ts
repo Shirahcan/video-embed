@@ -175,6 +175,15 @@ export interface VideoLabels {
   drawnEffectFailed: (effect: 'noise' | 'blur') => string;
   drawnMirror: string;
   drawnMirrorDetail: string;
+  /** P3a floating window. */
+  drawnFloat: string;
+  drawnFloatLong: string;
+  drawnFloatBack: string;
+  drawnFloated: string;
+  drawnFloatedDetail: string;
+  drawnFloatFailed: string;
+  drawnAutoFloat: string;
+  drawnAutoFloatDetail: string;
   heldElsewhereDetail: string;
   moveCallHere: string;
   // Call continuity: the same person on another device (InCallElsewhere)
@@ -556,6 +565,14 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
     effect === 'noise' ? 'Background noise could not be reduced in this browser.' : 'Your background could not be blurred in this browser.',
   drawnMirror: 'Mirror my video',
   drawnMirrorDetail: 'Only changes your own view. Others always see you the right way round.',
+  drawnFloat: 'Pop out',
+  drawnFloatLong: 'Pop the call out into a small window',
+  drawnFloatBack: 'Back to the tab',
+  drawnFloated: 'Your call is in the small window',
+  drawnFloatedDetail: 'It stays on top while you work in other tabs and apps.',
+  drawnFloatFailed: 'The small window could not open. Try Pop out again.',
+  drawnAutoFloat: 'Pop out when I switch tabs',
+  drawnAutoFloatDetail: 'While your camera or microphone is on, the call follows you into a small window when you switch tabs.',
   drawnDeviceFailed: (label, kept) => `${label || 'That device'} would not start (another app may be using it)${kept ? `, so the call kept ${kept}` : ''}.`,
   heldElsewhereDetail: 'Joining twice from one device makes both microphones live, which causes echo for everyone else. Switch back to the other tab, or move the call here.',
   moveCallHere: 'Move the call here',
