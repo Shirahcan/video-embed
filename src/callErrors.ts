@@ -24,6 +24,12 @@ export type CallFailureKind =
   /** The browser is too old for Daily. */
   | 'unsupported-browser'
   | 'network'
+  /**
+   * Daily's own connection to the call broke (its signalling or media server: "bad sigauthz token",
+   * "Signaling connection interrupted", a websocket or SFU failure). The room and the person's token
+   * are fine, so joining again is the cure; seen 2026-11-26 on first joins that a reload fixed.
+   */
+  | 'signaling'
   | 'unknown';
 
 export interface CallFailure {
@@ -32,6 +38,12 @@ export interface CallFailure {
   message: string;
 }
 
+
+/**
+ * Kinds that only need the person to join AGAIN, as they are (no room repair, no new token): the
+ * call retries these by itself, a couple of times, before asking anyone.
+ */
+export const RETRYABLE: ReadonlySet<CallFailureKind> = new Set(['signaling', 'network']);
 
 /**
  * Kinds a fresh join (repaired room, new token) can fix without a person deciding.
@@ -67,6 +79,8 @@ export function classifyCallError(event: unknown): CallFailure {
 
   // Older daily-js builds send only a message.
   const text = message.toLowerCase();
+  // Daily's own transport, checked first: these messages also contain words like "connection".
+  if (/sigauthz|signal(l)?ing|websocket|\bsfu\b|ice connection|peer connection/.test(text)) return { kind: 'signaling', message };
   const kind: CallFailureKind =
     text.includes('does not exist') || text.includes('no room') ? 'room-missing'
       : text.includes('meeting has ended') || text.includes('room has expired') || text.includes('expired') ? 'room-expired'

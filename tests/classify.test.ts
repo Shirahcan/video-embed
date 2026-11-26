@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { classifyCallError, REPAIRABLE } from '../src/callErrors';
+import { classifyCallError, REPAIRABLE, RETRYABLE } from '../src/callErrors';
 import { browserFamily, diagnoseMediaError, rms } from '../src/diagnose';
 import { DEFAULT_VIDEO_LABELS } from '../src/labels';
 
 describe('classifyCallError', () => {
+  it("knows Daily's own transport failures, before the generic connection words", () => {
+    for (const msg of ['bad sigauthz token', 'Signaling connection interrupted by a disconnect.', 'websocket closed', 'SFU connection failed', 'ICE connection failed']) {
+      expect(classifyCallError({ errorMsg: msg }).kind, msg).toBe('signaling');
+    }
+    expect(classifyCallError({ errorMsg: 'network connection lost' }).kind).toBe('network');
+    expect(RETRYABLE.has('signaling') && RETRYABLE.has('network')).toBe(true);
+    expect(REPAIRABLE.has('signaling')).toBe(false);
+  });
+
   it('maps every Daily fatal type to a kind', () => {
     const cases: Array<[string, string]> = [
       ['no-room', 'room-missing'],

@@ -56,6 +56,8 @@ export interface VideoLabels {
   repairing: string;
   repaired: string;
   repairFailed: string;
+  /** The call is joining again by itself after Daily's connection broke (signaling, network). */
+  reconnecting: string;
   /** BackupCallOffer: carry on in a matching Google Meet when the room cannot be fixed. */
   backupSwitch: string;
   backupSwitching: string;
@@ -446,6 +448,7 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
       case 'meeting-full': return 'The call is full';
       case 'unsupported-browser': return 'This browser is too old for the call';
       case 'network': return 'Your connection dropped';
+      case 'signaling': return 'The call lost its connection';
       default: return 'The call stopped';
     }
   },
@@ -460,6 +463,7 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
       case 'meeting-full': return 'Ask the host to make room, then rejoin.';
       case 'unsupported-browser': return 'Open the meeting in an up-to-date Chrome, Edge, Safari or Firefox.';
       case 'network': return 'We will reconnect as soon as you are back online.';
+      case 'signaling': return 'We tried to reconnect you and could not. Rejoin to carry on.';
       default: return 'Rejoin to carry on.';
     }
   },
@@ -473,6 +477,7 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   repairing: 'Fixing the room...',
   repaired: 'Room fixed. Reconnecting you.',
   repairFailed: 'We could not fix the room just now. Try again in a moment.',
+  reconnecting: 'Reconnecting you...',
   backupSwitch: 'Switch to a backup Google Meet',
   backupSwitching: 'Making the backup meeting...',
   backupHint: 'Still not working? Carry on in a Google Meet instead. Everyone in this call is sent the link.',

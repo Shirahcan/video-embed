@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { REPAIRABLE, type CallFailure, type CallFailureKind } from '../callErrors';
+import { REPAIRABLE, RETRYABLE, type CallFailure, type CallFailureKind } from '../callErrors';
 import type { MediaDiagnosis } from '../diagnose';
 import { useCallPresence, type PresenceAnswer, type PresenceSender } from '../hooks/useCallPresence';
 import { presenceDeviceId } from '../presenceDevice';
@@ -16,7 +16,11 @@ import { CallTimer } from './CallTimer';
 import { ScheduledEndCue } from './ScheduledEndCue';
 import { Troubleshooter } from './Troubleshooter';
 
-export type RecoveryStatus = 'idle' | 'repairing' | 'repaired' | 'failed' | 'offline';
+/** Tries to join again after Daily's connection broke, and the wait before the second. */
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 3000;
+
+export type RecoveryStatus = 'idle' | 'repairing' | 'repaired' | 'failed' | 'offline' | 'reconnecting';
 
 export interface CallFrameProps {
   /** The tokened join URL the product's backend handed out. */
@@ -230,6 +234,14 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     onEndedRef.current = onEnded;
   }, [onEnded]);
   const autoTried = useRef(false);
+  // Joining again by itself after a transport failure (RETRYABLE, or an unknown one once): how many
+  // tries so far, and the failure they answer (reported as repaired once a try gets the person in).
+  const retriesRef = useRef(0);
+  const retryingRef = useRef<CallFailure | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+  }, []);
   // This person's FIRST join in this frame: kept through leaves, rejoins and repairs, so the
   // running call clock never resets when people come and go.
   const [firstJoinedAt, setFirstJoinedAt] = useState<number | null>(null);
@@ -286,8 +298,28 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
         return;
       }
     }
+    // Daily's own connection broke (or a cause nobody named): join again as we are, at once and then
+    // after a few seconds, before asking anyone. Offline waits for the network instead.
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    const limit = RETRYABLE.has(failure.kind) ? MAX_RETRIES : failure.kind === 'unknown' ? 1 : 0;
+    if (!offline && retriesRef.current < limit) {
+      const delay = retriesRef.current === 0 ? 0 : RETRY_DELAY_MS;
+      retriesRef.current += 1;
+      retryingRef.current = failure;
+      setRecovery('reconnecting');
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = setTimeout(() => rejoinRef.current(), delay);
+      return;
+    }
+    if (retryingRef.current) {
+      // The tries ran out: a real failure, reported once with what Daily said.
+      retryingRef.current = null;
+      setRecovery('failed');
+      onFailure?.(failure, 'failed');
+      return;
+    }
     if (failure.kind === 'network') {
-      setRecovery(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'idle');
+      setRecovery(offline ? 'offline' : 'idle');
       onFailure?.(failure, 'offline');
       return;
     }
@@ -361,6 +393,11 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       if (rememberAs) rememberInCall(rememberAs);
       setFirstJoinedAt((t) => t ?? Date.now());
       autoTried.current = false;
+      retriesRef.current = 0;
+      if (retryingRef.current) {
+        onFailure?.(retryingRef.current, 'repaired');
+        retryingRef.current = null;
+      }
       setRecovery('idle');
       onJoined?.();
     },
@@ -388,8 +425,13 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       onDeviceError?.(d);
     },
     onFailure: (f) => {
-      // The drawn screen failing before the person got in: the standard screen takes over, once.
-      if (screen === 'drawn' && !inCallRef.current && f.kind !== 'ejected') {
+      // The drawn screen failing before the person got in is handled like any failure (retry, repair,
+      // wait for the network, or say why). Only a cause nobody could name, after its retry, hands the
+      // call to the standard screen, and that switch is recorded with what Daily said.
+      if (screen === 'drawn' && !inCallRef.current && f.kind === 'unknown' && retriesRef.current >= 1) {
+        retryingRef.current = null;
+        retriesRef.current = 0;
+        onFailure?.(f, 'idle');
         fallBackToPrebuilt();
         return;
       }
@@ -674,12 +716,14 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
             <p className="ve-overlay__title">{labels.failureTitle(failure.kind)}</p>
             <p className="ve-overlay__detail">
               {recovery === 'repairing' ? labels.repairing
+                : recovery === 'reconnecting' ? labels.reconnecting
                 : recovery === 'repaired' ? labels.repaired
+                  : recovery === 'failed' && !REPAIRABLE.has(failure.kind) ? labels.failureDetail(failure.kind)
                   : recovery === 'failed' ? labels.repairFailed
                     : recovery === 'offline' ? labels.waitingForNetwork
                       : labels.failureDetail(failure.kind)}
             </p>
-            {recovery !== 'repairing' && recovery !== 'offline' && failure.kind !== 'ejected' ? (
+            {recovery !== 'repairing' && recovery !== 'reconnecting' && recovery !== 'offline' && failure.kind !== 'ejected' ? (
               <button
                 type="button"
                 className={cx('ve-btn ve-btn--primary', classNames.button, classNames.buttonPrimary)}

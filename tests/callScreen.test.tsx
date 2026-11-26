@@ -211,11 +211,53 @@ describe('which call screen a device gets', () => {
     expect(answered).toEqual([['w1', { grantRequestedAccess: true }]]);
   });
 
-  it('falls back to the standard screen when the drawn call fails before the person gets in', async () => {
-    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+  it('tries once more, then hands the call to the standard screen, when the drawn call fails for a reason nobody named', async () => {
+    const onFailure = vi.fn();
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onFailure={onFailure} />);
     await waitFor(() => expect(latest().joins).toHaveLength(1));
-    act(() => latest().emit('error', { errorMsg: 'Something went wrong connecting' }));
+    const first = latest();
+    act(() => first.emit('error', { errorMsg: 'Something odd happened' }));
+    await waitFor(() => expect(latest()).not.toBe(first));
+    const retry = latest();
+    expect(retry.kind).not.toBe('frame');
+    await waitFor(() => expect(retry.joins).toHaveLength(1));
+    act(() => retry.emit('error', { errorMsg: 'Something odd happened' }));
     await waitFor(() => expect(latest().kind).toBe('frame'));
+    // The switch is on the record, with what Daily said.
+    expect(onFailure).toHaveBeenCalledWith({ kind: 'unknown', message: 'Something odd happened' }, 'idle');
+  });
+
+  it('joins again by itself when Daily loses its own connection, and records it as repaired', async () => {
+    const onFailure = vi.fn();
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onFailure={onFailure} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    const first = latest();
+    act(() => first.emit('error', { errorMsg: 'bad sigauthz token' }));
+    await waitFor(() => expect(latest()).not.toBe(first));
+    const retry = latest();
+    expect(retry.kind).not.toBe('frame');
+    await waitFor(() => expect(retry.joins).toHaveLength(1));
+    act(() => retry.emit('joined-meeting'));
+    expect(onFailure).toHaveBeenCalledWith({ kind: 'signaling', message: 'bad sigauthz token' }, 'repaired');
+  });
+
+  it('asks the person only after two tries fail, and never swaps the screen for it', async () => {
+    const onFailure = vi.fn();
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onFailure={onFailure} />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    let call = latest();
+    for (let i = 0; i < 2; i++) {
+      const before = call;
+      act(() => before.emit('error', { errorMsg: 'bad sigauthz token' }));
+      await waitFor(() => expect(latest()).not.toBe(before), { timeout: 5000 });
+      call = latest();
+      await waitFor(() => expect(call.joins).toHaveLength(1));
+    }
+    act(() => call.emit('error', { errorMsg: 'bad sigauthz token' }));
+    expect(await screen.findByText('The call lost its connection')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(onFailure).toHaveBeenCalledWith({ kind: 'signaling', message: 'bad sigauthz token' }, 'failed');
+    expect(call.kind).not.toBe('frame');
   });
 
   it('a crash while drawing falls back to the standard screen instead of stranding the person', async () => {
