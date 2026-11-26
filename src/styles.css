@@ -253,9 +253,23 @@
 }
 .ve-drawn { position: absolute; inset: 0; display: flex; flex-direction: column; color: #fff; font-family: var(--ve-font); container-type: inline-size;
   background: radial-gradient(120% 60% at 50% -10%, var(--ve-stage-glow), transparent 60%), var(--ve-stage); }
-.ve-drawn__grid { flex: 1; min-height: 0; display: grid; gap: 10px; padding: 12px 12px 0; grid-template-columns: 1fr; }
-.ve-drawn__grid--2, .ve-drawn__grid--3, .ve-drawn__grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.ve-drawn__waiting { align-self: center; justify-self: center; margin: 0; padding: 10px 18px; border-radius: var(--ve-radius-pill); background: var(--ve-glass); border: 1px solid var(--ve-glass-border); color: var(--ve-control-label); font-size: 14px; }
+.ve-drawn__grid { position: relative; flex: 1; min-height: 0; display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 10px; padding: 12px 12px 0; }
+/* Every tile keeps a 16:9 frame at the size fitTiles() worked out for this stage (Meet's tiling). */
+.ve-drawn__grid > .ve-tile { flex: none; width: var(--ve-tile-w, 100%); aspect-ratio: 16 / 9; }
+/* Someone presenting: their screen large, everyone in a strip beside it (under it on a narrow stage). */
+.ve-drawn__share { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 196px; gap: 10px; padding: 12px 12px 0; }
+.ve-drawn__strip { min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.ve-tile--strip { flex: none; aspect-ratio: 16 / 10; }
+.ve-tile--strip .ve-tile__initials { width: 40px; height: 40px; font-size: 14px; box-shadow: none; }
+.ve-tile--strip .ve-tile__name { left: 6px; bottom: 6px; padding: 2px 8px; font-size: 11px; }
+.ve-tile--share { background: #020617; }
+.ve-tile__video--contain { object-fit: contain; }
+@container (max-width: 640px) {
+  .ve-drawn__share { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .ve-drawn__strip { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
+  .ve-tile--strip { width: 120px; }
+}
+.ve-drawn__waiting { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); z-index: 2; white-space: nowrap; margin: 0; padding: 10px 18px; border-radius: var(--ve-radius-pill); background: var(--ve-glass); border: 1px solid var(--ve-glass-border); color: var(--ve-control-label); font-size: 14px; }
 
 .ve-tile { position: relative; min-height: 0; border-radius: 18px; overflow: hidden; background: var(--ve-tile); display: flex; align-items: center; justify-content: center; }
 .ve-tile__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -264,6 +278,11 @@
 .ve-tile__name { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 20px); padding: 4px 10px; border-radius: var(--ve-radius-pill);
   background: var(--ve-glass); border: 1px solid var(--ve-glass-border); backdrop-filter: blur(8px); font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ve-tile__muted { display: inline-flex; color: #fca5a5; }
+/* The viewer sees themselves as in a mirror (everyone else sees them the right way round). */
+.ve-tile--mirror .ve-tile__video { transform: scaleX(-1); }
+/* Whoever is speaking: a ring in the accent, drawn inside the tile so the layout never shifts. */
+.ve-tile::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 0 transparent; transition: box-shadow 160ms ease; }
+.ve-tile--speaking::after { box-shadow: inset 0 0 0 3px var(--ve-accent); }
 .ve-tile--self { position: absolute; right: 20px; bottom: 104px; width: min(24%, 240px); aspect-ratio: 16 / 9; z-index: 2; border: 1px solid rgb(255 255 255 / 0.2); box-shadow: 0 10px 30px rgb(0 0 0 / 0.45); }
 .ve-tile--self .ve-tile__initials { width: 44px; height: 44px; font-size: 16px; box-shadow: none; }
 .ve-tile--self .ve-tile__name { left: 6px; bottom: 6px; padding: 2px 8px; font-size: 11px; }
@@ -296,4 +315,4 @@
 /* A short or narrow stage: smaller controls, labels kept. */
 @container (max-width: 520px) { .ve-drawn__bar { gap: 8px; padding: 8px 10px 6px; } .ve-ctl { min-width: 44px; } }
 @media (max-height: 640px) { .ve-drawn { --ve-control-size: 40px; } .ve-tile--self { bottom: 92px; } }
-@media (prefers-reduced-motion: reduce) { .ve-ctl__disc { transition: none; } .ve-ctl:active .ve-ctl__disc { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ve-tile::after { transition: none; } .ve-ctl__disc { transition: none; } .ve-ctl:active .ve-ctl__disc { transform: none; } }

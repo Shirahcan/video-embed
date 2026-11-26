@@ -1,0 +1,68 @@
+import { useEffect, useRef } from 'react';
+import type { DrawnPerson } from '../drawnLayout';
+import { cx } from '../theme';
+import { MicOffIcon } from './icons';
+
+/** Keeps a media element playing one track; the element itself never changes, so it can move windows. */
+export function useMediaTrack(track: MediaStreamTrack | null) {
+  const ref = useRef<HTMLVideoElement & HTMLAudioElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const current = (el.srcObject as MediaStream | null)?.getTracks()[0];
+    if (track && current?.id === track.id) return;
+    el.srcObject = track ? new MediaStream([track]) : null;
+    if (track) void el.play().catch(() => {});
+  }, [track]);
+  return ref;
+}
+
+function initialsOf(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
+}
+
+export function Tile({ person, label, mutedLabel, speaking = false, variant = 'stage' }: {
+  person: DrawnPerson;
+  label: string;
+  mutedLabel: string;
+  speaking?: boolean;
+  /** `stage`: in the grid; `self`: the viewer's corner tile; `strip`: beside a shared screen. */
+  variant?: 'stage' | 'self' | 'strip';
+}) {
+  const showVideo = person.videoOn && Boolean(person.video);
+  const ref = useMediaTrack(showVideo ? person.video : null);
+  return (
+    <div
+      className={cx('ve-tile', variant === 'self' && 've-tile--self', variant === 'strip' && 've-tile--strip', speaking && 've-tile--speaking', person.local && 've-tile--mirror')}
+      data-person={person.id}
+    >
+      <video ref={ref} className="ve-tile__video" autoPlay playsInline muted hidden={!showVideo} />
+      {!showVideo ? <span className="ve-tile__initials" aria-hidden="true">{initialsOf(person.name || label)}</span> : null}
+      <span className="ve-tile__name">
+        {!person.audioOn ? (
+          <span className="ve-tile__muted" role="img" aria-label={mutedLabel}>
+            <MicOffIcon width={14} height={14} />
+          </span>
+        ) : null}
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/** A shared screen, shown whole (never cropped), with who is presenting. */
+export function ShareTile({ track, label }: { track: MediaStreamTrack; label: string }) {
+  const ref = useMediaTrack(track);
+  return (
+    <div className="ve-tile ve-tile--share">
+      <video ref={ref} className="ve-tile__video ve-tile__video--contain" autoPlay playsInline muted />
+      <span className="ve-tile__name">{label}</span>
+    </div>
+  );
+}
+
+/** One person's sound. Kept outside the tiles, so moving tiles (the float) never pauses it. */
+export function Sound({ track }: { track: MediaStreamTrack | null }) {
+  const ref = useMediaTrack(track);
+  return <audio ref={ref} autoPlay />;
+}

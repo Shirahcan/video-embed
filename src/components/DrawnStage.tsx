@@ -1,7 +1,11 @@
-import { Component, useEffect, useId, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
+import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
 import { CameraIcon, CameraOffIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, StandardScreenIcon } from './icons';
+import { chooseDrawnLayout, drawnPeople, fitTiles, presenterOf, receiveLayers, type DrawnPerson } from '../drawnLayout';
+import { ShareTile, Sound, Tile } from './DrawnTile';
+
+export { drawnPeople, type DrawnPerson };
 
 /**
  * The call drawn by the kit from Daily's call object: the people's tiles, their sound, and our own
@@ -12,76 +16,6 @@ import { CameraIcon, CameraOffIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, St
  * without the call noticing (P1 spike, 2026-11-26). Remote SOUND always plays from elements that
  * never move, so it never pauses.
  */
-export interface DrawnPerson {
-  id: string;
-  name: string;
-  local: boolean;
-  video: MediaStreamTrack | null;
-  audio: MediaStreamTrack | null;
-  audioOn: boolean;
-  videoOn: boolean;
-}
-
-function playable(track: { state?: string; persistentTrack?: MediaStreamTrack } | undefined): MediaStreamTrack | null {
-  if (!track || !track.persistentTrack) return null;
-  return track.state === 'playable' ? track.persistentTrack : null;
-}
-
-/** Daily's participants() map as the people the stage draws: the viewer first. */
-export function drawnPeople(raw: Record<string, DailyParticipant> | null | undefined): DrawnPerson[] {
-  if (!raw) return [];
-  const people = Object.values(raw).map((p) => {
-    const tracks = (p as unknown as { tracks?: { audio?: { state?: string; persistentTrack?: MediaStreamTrack }; video?: { state?: string; persistentTrack?: MediaStreamTrack } } }).tracks;
-    return {
-      id: p.session_id,
-      name: (p.user_name ?? '').trim(),
-      local: Boolean(p.local),
-      video: playable(tracks?.video),
-      audio: playable(tracks?.audio),
-      audioOn: tracks?.audio?.state !== 'off' && tracks?.audio?.state !== 'blocked',
-      videoOn: tracks?.video?.state !== 'off' && tracks?.video?.state !== 'blocked',
-    };
-  });
-  return people.sort((a, b) => Number(b.local) - Number(a.local));
-}
-
-function useMediaTrack(track: MediaStreamTrack | null) {
-  const ref = useRef<HTMLVideoElement & HTMLAudioElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const current = (el.srcObject as MediaStream | null)?.getTracks()[0];
-    if (track && current?.id === track.id) return;
-    el.srcObject = track ? new MediaStream([track]) : null;
-    if (track) void el.play().catch(() => {});
-  }, [track]);
-  return ref;
-}
-
-function Tile({ person, label, mutedLabel }: { person: DrawnPerson; label: string; mutedLabel: string }) {
-  const ref = useMediaTrack(person.videoOn ? person.video : null);
-  const initials = (person.name || label).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
-  return (
-    <div className={cx('ve-tile', person.local && 've-tile--self')} data-person={person.id}>
-      <video ref={ref} className="ve-tile__video" autoPlay playsInline muted hidden={!person.videoOn || !person.video} />
-      {!person.videoOn || !person.video ? <span className="ve-tile__initials" aria-hidden="true">{initials || '?'}</span> : null}
-      <span className="ve-tile__name">
-        {!person.audioOn ? (
-          <span className="ve-tile__muted" role="img" aria-label={mutedLabel}>
-            <MicOffIcon width={14} height={14} />
-          </span>
-        ) : null}
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function Sound({ track }: { track: MediaStreamTrack | null }) {
-  const ref = useMediaTrack(track);
-  return <audio ref={ref} autoPlay />;
-}
-
 /** A round icon button with its short label underneath (the call's control bar). */
 function Control({ label, ariaLabel, icon, onClick, pressed, expanded, off = false, danger = false }: {
   label: string;
@@ -124,6 +58,25 @@ export function DrawnStage({ call, onLeave, onUseStandard }: DrawnStageProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLSpanElement>(null);
   const standardDetailId = useId();
+  // Who is speaking now (Daily's active speaker), for the ring on their tile.
+  const [speakerId, setSpeakerId] = useState<string | null>(null);
+  // The stage's inner size, so the tiles are fitted to it (as Meet does), not stretched by a grid.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stage, setStage] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () => {
+      const css = getComputedStyle(el);
+      const width = el.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight);
+      const height = el.clientHeight - parseFloat(css.paddingTop) - parseFloat(css.paddingBottom);
+      setStage((s) => (s.width === width && s.height === height ? s : { width, height }));
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    measure();
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const sync = () => {
@@ -133,11 +86,14 @@ export function DrawnStage({ call, onLeave, onUseStandard }: DrawnStageProps) {
         /* torn down mid-event */
       }
     };
+    const onSpeaker = (e?: { activeSpeaker?: { peerId?: string } }) => setSpeakerId(e?.activeSpeaker?.peerId ?? null);
     const events = ['joined-meeting', 'participant-joined', 'participant-updated', 'participant-left', 'track-started', 'track-stopped'] as const;
     for (const e of events) call.on(e, sync);
+    call.on('active-speaker-change', onSpeaker);
     sync();
     return () => {
       for (const e of events) call.off(e, sync);
+      call.off('active-speaker-change', onSpeaker);
     };
   }, [call]);
 
@@ -162,14 +118,55 @@ export function DrawnStage({ call, onLeave, onUseStandard }: DrawnStageProps) {
   const others = people.filter((p) => !p.local);
   const micOff = self ? !self.audioOn : false;
   const camOff = self ? !self.videoOn : false;
+  const layout = chooseDrawnLayout(people);
+  const presenter = presenterOf(people);
+  // Meet's tiles: with one other person they are large and you float in the corner; alone you see
+  // yourself; with two or more others everyone, you included, shares one grid (you last).
+  const tiles = layout === 'focus' ? others : layout === 'waiting' ? (self ? [self] : []) : self ? [...others, self] : others;
+  const fit = fitTiles(tiles.length, stage.width, stage.height);
+  // A ring only means something with someone to tell apart.
+  const ringFor = (p: DrawnPerson) => others.length >= 1 && speakerId === p.id;
+
+  // Spend a weak connection's bandwidth on what is large on screen.
+  const layersKey = JSON.stringify(receiveLayers(people, layout));
+  useEffect(() => {
+    const layers = JSON.parse(layersKey) as Record<string, 0 | 1 | 2>;
+    if (Object.keys(layers).length === 0) return;
+    const settings: Record<string, { video: { layer: number } }> = {};
+    for (const [id, layer] of Object.entries(layers)) settings[id] = { video: { layer } };
+    try {
+      void Promise.resolve(call.updateReceiveSettings?.(settings)).catch(() => {});
+    } catch {
+      /* not in a call (yet), or torn down: the default quality stays */
+    }
+  }, [call, layersKey]);
 
   return (
     <div className="ve-drawn" role="region" aria-label={labels.drawnRegion}>
-      <div className={cx('ve-drawn__grid', `ve-drawn__grid--${Math.min(others.length, 4)}`)}>
-        {others.length === 0 ? <p className="ve-drawn__waiting">{labels.drawnWaiting}</p> : null}
-        {others.map((p) => <Tile key={p.id} person={p} label={p.name || '?'} mutedLabel={labels.drawnMuted} />)}
-      </div>
-      {self ? <Tile person={self} label={labels.drawnYou} mutedLabel={labels.drawnMuted} /> : null}
+      {layout === 'share' && presenter?.screen ? (
+        <div className="ve-drawn__share" data-layout="share">
+          <ShareTile track={presenter.screen} label={labels.drawnPresenting(presenter.name || '?')} />
+          <div className="ve-drawn__strip">
+            {people.map((p) => (
+              <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} speaking={ringFor(p)} variant="strip" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={stageRef}
+          className={cx('ve-drawn__grid', `ve-drawn__grid--${layout}`)}
+          data-layout={layout}
+          data-columns={fit.columns}
+          style={{ '--ve-tile-w': `${fit.tileWidth}px` } as CSSProperties}
+        >
+          {layout === 'waiting' ? <p className="ve-drawn__waiting">{labels.drawnWaiting}</p> : null}
+          {tiles.map((p) => (
+            <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} speaking={ringFor(p)} />
+          ))}
+        </div>
+      )}
+      {self && layout === 'focus' ? <Tile person={self} label={labels.drawnYou} mutedLabel={labels.drawnMuted} speaking={ringFor(self)} variant="self" /> : null}
 
       <div className="ve-drawn__sound" hidden>
         {others.map((p) => <Sound key={p.id} track={p.audio} />)}

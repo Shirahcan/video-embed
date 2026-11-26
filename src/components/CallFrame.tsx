@@ -468,7 +468,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       {scheduledEnd && !ended && frame.state === 'joined' ? <ScheduledEndCue scheduledEnd={scheduledEnd} action={endCueAction} /> : null}
 
       {frame.state === 'ready' && prejoinLong ? (
-        <p className="ve-hint ve-hint--warn ve-prejoin-hint" role="status">{labels.prejoinPermissionHint}</p>
+        <p className="ve-hint ve-hint--warn ve-prejoin-hint" role="status">{screen === 'drawn' ? labels.drawnPermissionHint : labels.prejoinPermissionHint}</p>
       ) : null}
 
       {!ended && (frame.state === 'joined' || frame.state === 'ready') ? (

@@ -125,6 +125,9 @@ export interface VideoLabels {
   drawnVideoStop: string;
   drawnVideoStart: string;
   drawnMoreShort: string;
+  drawnPresenting: (name: string) => string;
+  /** The drawn screen has no Join button: the call starts once the browser's camera / microphone prompt is answered. */
+  drawnPermissionHint: string;
   heldElsewhereDetail: string;
   moveCallHere: string;
   // Call continuity: the same person on another device (InCallElsewhere)
@@ -466,6 +469,8 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnVideoStop: 'Stop video',
   drawnVideoStart: 'Start video',
   drawnMoreShort: 'More',
+  drawnPresenting: (name) => `${name} is presenting`,
+  drawnPermissionHint: 'Your browser is asking to use your camera and microphone (look near the address bar). Choose Allow and you join the call.',
   heldElsewhereDetail: 'Joining twice from one device makes both microphones live, which causes echo for everyone else. Switch back to the other tab, or move the call here.',
   moveCallHere: 'Move the call here',
   inCallElsewhereTitle: "You're in this call on another device",
