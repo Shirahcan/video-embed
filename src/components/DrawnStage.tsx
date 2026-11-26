@@ -1,7 +1,7 @@
 import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode, useCallback } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
-import { BlurIcon, MirrorIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, MicIcon, MicOffIcon, NoiseIcon, PresentIcon } from './icons';
+import { BlurIcon, MirrorIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, MicIcon, MicOffIcon, NoiseIcon, PeopleIcon, PresentIcon } from './icons';
 import { PRESENT_OPTIONS, useDrawnEffects } from '../drawnEffects';
 import { prefersMirroredSelf, setMirroredSelf } from '../callScreen';
 import { createPortal } from 'react-dom';
@@ -12,13 +12,15 @@ import { Control } from './DrawnControl';
 import { DrawnMoreMenu } from './DrawnMoreMenu';
 import { DrawnLeaveMenu } from './DrawnLeaveMenu';
 import { DrawnChatPanel } from './DrawnChatPanel';
+import { DrawnPeoplePanel } from './DrawnPeoplePanel';
+import { useHostControls } from '../hostControls';
 import { useDrawnChat } from '../drawnChat';
 import { useDrawnNetwork } from '../drawnNetwork';
 import { chooseDrawnLayout, drawnPeople, fitTiles, presenterOf, receiveLayers, type DrawnPerson } from '../drawnLayout';
 import { ShareTile, Sound, Tile } from './DrawnTile';
 import { DrawnDeviceMenu } from './DrawnDeviceMenu';
 import { useDrawnDevices } from '../drawnDevices';
-import type { CallAccess } from '../hooks/useDailyFrame';
+import type { CallAccess, WaitingPerson } from '../hooks/useDailyFrame';
 
 export { drawnPeople, type DrawnPerson };
 
@@ -58,14 +60,23 @@ export interface DrawnStageProps {
    * call by CallFrame, with "Having trouble?"; the stage does not repeat it.
    */
   setDevices?: (devices: { audioDeviceId?: string; videoDeviceId?: string }) => void;
+  /** People asking to be let in (the host's list), shown in the People panel (F1). */
+  waiting?: WaitingPerson[];
+  /** Let a waiting person in (true) or turn them away (false). */
+  onAnswer?: (id: string, letIn: boolean) => void;
 }
 
-export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices }: DrawnStageProps) {
+export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices, waiting = [], onAnswer }: DrawnStageProps) {
   const { labels } = useVideoUi();
   const devices = useDrawnDevices(call, { microphone: labels.microphone, camera: labels.camera, speaker: labels.speaker }, setDevices);
   // The browser refused to play the call's sound (no click on the page yet): one button fixes it.
   const [soundBlocked, setSoundBlocked] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  // One side panel at a time: the chat or the people (F1), each sliding over the stage.
+  const [panel, setPanel] = useState<'chat' | 'people' | null>(null);
+  const chatOpen = panel === 'chat';
+  const peopleOpen = panel === 'people';
+  const togglePanel = (which: 'chat' | 'people') => setPanel((p) => (p === which ? null : which));
+  const hostControls = useHostControls(call);
   const connection = useDrawnNetwork(call);
   const effects = useDrawnEffects(call);
   const [mirror, setMirror] = useState(prefersMirroredSelf);
@@ -175,10 +186,13 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
     ...(float.supported ? [{ key: 'float', priority: 1 }] : []),
     ...(effects.support.present ? [{ key: 'present', priority: 2 }] : []),
     { key: 'chat', priority: 3 },
+    { key: 'people', priority: 4 },
   ];
   const folded = useBarFold(rootRef, barRef, foldable);
   const isFolded = (key: string) => folded.includes(key);
   const micOff = self ? !self.audioOn : false;
+  // "The host muted you" holds only while the microphone is still off.
+  const mutedByHost = hostControls.mutedByHost && micOff;
   const camOff = self ? !self.videoOn : false;
   // You are presenting when your own screen track is live; you never see it back (no mirror tunnel).
   const presenting = Boolean(self?.screen);
@@ -190,6 +204,8 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
       /* not in the call any more */
     }
   };
+  // People waiting to be let in: a count on People for the host who can answer them.
+  const knocking = hostControls.isHost ? waiting.length : 0;
   const layout = chooseDrawnLayout(people);
   const presenter = presenterOf(people);
   // Meet's tiles: with one other person they are large and you float in the corner; alone you see
@@ -267,7 +283,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
   }
 
   return (
-    <div ref={rootRef} className={cx('ve-drawn', chatOpen && 've-drawn--chat', float.host && 've-drawn--floated')} role="region" aria-label={labels.drawnRegion}>
+    <div ref={rootRef} className={cx('ve-drawn', panel && 've-drawn--chat', float.host && 've-drawn--floated')} role="region" aria-label={labels.drawnRegion}>
       {floatPortal}
       {float.host ? (
         <div className="ve-drawn__floated" role="status">
@@ -315,12 +331,19 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
         </div>
       ) : null}
 
-      {soundBlocked || notice || connection !== 'ok' || presenting || effects.failed || float.failed ? (
+      {soundBlocked || notice || connection !== 'ok' || presenting || effects.failed || float.failed || mutedByHost ? (
         <div className="ve-drawn__notices">
           {float.failed ? (
             <p className="ve-drawn__notice" role="status">
               <span>{labels.drawnFloatFailed}</span>
               <button type="button" className="ve-drawn__notice-btn" onClick={float.dismissFailed}>{labels.drawnDismiss}</button>
+            </p>
+          ) : null}
+          {mutedByHost ? (
+            <p className="ve-drawn__notice" role="status">
+              <MicOffIcon width={16} height={16} />
+              <span>{labels.drawnMutedByHost}</span>
+              <button type="button" className="ve-drawn__notice-btn" onClick={hostControls.dismissMutedByHost}>{labels.drawnDismiss}</button>
             </p>
           ) : null}
           {presenting ? (
@@ -364,7 +387,16 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
         </div>
       ) : null}
 
-      {chatOpen ? <DrawnChatPanel messages={chat.messages} onSend={chat.send} onClose={() => setChatOpen(false)} /> : null}
+      {chatOpen ? <DrawnChatPanel messages={chat.messages} onSend={chat.send} onClose={() => setPanel(null)} /> : null}
+      {peopleOpen ? (
+        <DrawnPeoplePanel
+          people={people}
+          waiting={hostControls.isHost ? waiting : []}
+          onAnswer={onAnswer}
+          host={hostControls.isHost ? { mute: hostControls.mute, remove: hostControls.remove } : null}
+          onClose={() => setPanel(null)}
+        />
+      ) : null}
 
       <div className="ve-drawn__bar" role="toolbar" aria-label={labels.drawnControls} ref={barRef}>
         <DrawnDeviceMenu
@@ -427,17 +459,28 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             label={labels.drawnChatShort}
             ariaLabel={chat.unread > 0 ? labels.drawnChatUnread(chat.unread) : labels.drawnChat}
             pressed={chatOpen}
-            onClick={() => setChatOpen((o) => !o)}
+            onClick={() => togglePanel('chat')}
             icon={<ChatIcon />}
           />
           {chat.unread > 0 ? <span className="ve-ctl-badge" aria-hidden="true">{chat.unread > 9 ? '9+' : chat.unread}</span> : null}
+        </span>}
+        {isFolded('people') ? null : <span className="ve-ctl-badged" data-fold-key="people">
+          <Control
+            label={labels.drawnPeopleShort}
+            ariaLabel={labels.drawnPeople}
+            pressed={peopleOpen}
+            onClick={() => togglePanel('people')}
+            icon={<PeopleIcon />}
+          />
+          {knocking > 0 ? <span className="ve-ctl-badge" aria-hidden="true">{knocking > 9 ? '9+' : knocking}</span> : null}
         </span>}
         <DrawnMoreMenu
           onUseStandard={onUseStandard}
           actions={[
             ...(isFolded('float') ? [{ key: 'float', title: float.host ? labels.drawnFloatBack : labels.drawnFloatLong, icon: <PopOutIcon />, pressed: Boolean(float.host), onSelect: () => (float.host ? float.close() : void float.open()) }] : []),
             ...(isFolded('present') ? [{ key: 'present', title: presenting ? labels.drawnPresentStop : labels.drawnPresent, icon: <PresentIcon />, pressed: presenting, onSelect: togglePresent }] : []),
-            ...(isFolded('chat') ? [{ key: 'chat', title: chat.unread > 0 ? labels.drawnChatUnread(chat.unread) : labels.drawnChat, icon: <ChatIcon />, pressed: chatOpen, badge: chat.unread, onSelect: () => setChatOpen((o) => !o) }] : []),
+            ...(isFolded('chat') ? [{ key: 'chat', title: chat.unread > 0 ? labels.drawnChatUnread(chat.unread) : labels.drawnChat, icon: <ChatIcon />, pressed: chatOpen, badge: chat.unread, onSelect: () => togglePanel('chat') }] : []),
+            ...(isFolded('people') ? [{ key: 'people', title: labels.drawnPeople, icon: <PeopleIcon />, pressed: peopleOpen, badge: knocking, onSelect: () => togglePanel('people') }] : []),
           ]}
           switches={[
             ...(effects.support.noise ? [{ key: 'noise', on: effects.noise, title: labels.drawnNoise, detail: labels.drawnNoiseDetail, icon: <NoiseIcon />, onToggle: effects.toggleNoise }] : []),

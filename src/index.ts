@@ -29,7 +29,7 @@ export type { InCallElsewhereProps } from './components/InCallElsewhere';
 export { useMediaCheck } from './hooks/useMediaCheck';
 export type { CameraStatus, DeviceOption, MediaCheck, MicStatus, SpeakerStatus } from './hooks/useMediaCheck';
 export { CallFrame } from './components/CallFrame';
-export type { CallFrameProps, RecoveryStatus } from './components/CallFrame';
+export type { CallFrameProps, LeftCallHow, RecoveryStatus } from './components/CallFrame';
 export { DeviceCheck } from './components/DeviceCheck';
 export { ExternalCall, externalCallPlatform } from './components/ExternalCall';
 export { BackupCallOffer } from './components/BackupCallOffer';

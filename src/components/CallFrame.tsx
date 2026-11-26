@@ -22,6 +22,9 @@ const RETRY_DELAY_MS = 3000;
 
 export type RecoveryStatus = 'idle' | 'repairing' | 'repaired' | 'failed' | 'offline' | 'reconnecting';
 
+/** Why the person is out of the call: they left, or a host removed them. */
+export type LeftCallHow = 'left' | 'removed';
+
 export interface CallFrameProps {
   /** The tokened join URL the product's backend handed out. */
   url: string;
@@ -38,9 +41,10 @@ export interface CallFrameProps {
   /**
    * The person chose to leave on the drawn screen (L2): its Leave, or 'Leave' when alone. Never
    * for a call that ended, moved to another device or swapped screens. A product takes them to
-   * the meeting's page; without one the kit shows 'You left the call' with Rejoin.
+   * the meeting's page; without one the kit shows 'You left the call' with Rejoin. `removed`: a host
+   * took them out (F1), so the product says that instead, with no way straight back in.
    */
-  onLeftCall?: () => void;
+  onLeftCall?: (how: LeftCallHow) => void;
   /** Every failure and its outcome, for the product's own record. */
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
@@ -298,6 +302,12 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
         return;
       }
     }
+    // A host removed this person (F1): the product takes them where it says so, when it can.
+    if (failure.kind === 'ejected' && onLeftCallRef.current) {
+      onFailure?.(failure, 'idle');
+      onLeftCallRef.current('removed');
+      return;
+    }
     // Daily's own connection broke (or a cause nobody named): join again as we are, at once and then
     // after a few seconds, before asking anyone. Offline waits for the network instead.
     const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
@@ -418,14 +428,14 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       leavingAloneRef.current = false;
       leaveChosenRef.current = false;
       const settled = endedRef.current || endingRef.current || movedRef.current;
-      if (chose && !settled) onLeftCallRef.current?.();
+      if (chose && !settled) onLeftCallRef.current?.('left');
       // The standard screen's own Leave, for a guest: a host ending the call for everyone ALSO takes
       // them out of it, so ask whether the call is over first; over reads as ended, not as "you left".
       // (A host is asked 'Is it over?' instead, and picks Leave the call there, below.)
       else if (!chose && !settled && screen === 'prebuilt' && wasInCall && !onEndForEveryone && onLeftCallRef.current) {
         void (checkEnded ? checkEnded().catch(() => false) : Promise.resolve(false)).then((over) => {
           if (over) markEnded('ended');
-          else if (!endedRef.current) onLeftCallRef.current?.();
+          else if (!endedRef.current) onLeftCallRef.current?.('left');
         });
       }
       onLeft?.();
@@ -599,6 +609,8 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
               }}
               onEndForEveryone={onEndForEveryone ? () => void endForEveryone() : undefined}
               setDevices={frame.setDevices}
+              waiting={frame.waiting}
+              onAnswer={(id, letIn) => void frame.call?.updateWaitingParticipant(id, { grantRequestedAccess: letIn }).catch(() => {})}
               onUseStandard={() => {
                 preferStandardScreen();
                 fallBackToPrebuilt();
@@ -674,7 +686,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
                 className={cx('ve-btn ve-btn--quiet', classNames.button)}
                 onClick={() => {
                   setEndStep('none');
-                  onLeftCallRef.current?.();
+                  onLeftCallRef.current?.('left');
                 }}
               >
                 {labels.drawnLeaveOnly}

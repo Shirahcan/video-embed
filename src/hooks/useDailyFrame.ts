@@ -290,7 +290,9 @@ export function useDailyFrame({
           .on('left-meeting', () => {
             // A refused knock ends Daily's meeting too, but the person never was in the call.
             if (knock === 'denied') return;
-            setState('left');
+            // Daily follows an ending error (removed, expired) with left-meeting: the error says why,
+            // so it stays on screen instead of "You left the call".
+            setState((st) => (st === 'error' ? st : 'left'));
             handlersRef.current.onParticipantsChange?.([]);
             handlersRef.current.onLeft?.();
           })

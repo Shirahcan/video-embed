@@ -13,9 +13,9 @@ function Icon({ children, ...props }: SVGProps<SVGSVGElement> & { children: Reac
   );
 }
 
-export function MicIcon() {
+export function MicIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <Icon>
+    <Icon {...props}>
       <rect x="9" y="2" width="6" height="12" rx="3" />
       <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
       <path d="M12 18v4" />
@@ -45,9 +45,9 @@ export function CameraIcon() {
   );
 }
 
-export function CameraOffIcon() {
+export function CameraOffIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <Icon>
+    <Icon {...props}>
       <path d="M2 2l20 20" />
       <path d="M10.66 6H14a2 2 0 0 1 2 2v2.34l1 .66 4-2.67v9.34" />
       <path d="M16 16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2" />
@@ -107,6 +107,28 @@ export function SpeakerIcon(props: SVGProps<SVGSVGElement>) {
       <path d="M11 5 6 9H2v6h4l5 4V5z" />
       <path d="M15.5 8.5a5 5 0 0 1 0 7" />
       <path d="M19 5a10 10 0 0 1 0 14" />
+    </Icon>
+  );
+}
+
+export function PeopleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8" />
+      <path d="M18.5 14.2A6.5 6.5 0 0 1 21.5 20" />
+    </Icon>
+  );
+}
+
+/** The vertical three dots of a row's actions. */
+export function KebabIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="5" r="1" fill="currentColor" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="12" cy="19" r="1" fill="currentColor" />
     </Icon>
   );
 }

@@ -14,7 +14,7 @@ import type { MediaDiagnosis } from '../diagnose';
 import type { PresenceKind, PresenceOptions, PresenceSender } from '../hooks/useCallPresence';
 import type { CallParticipant, WaitingPerson } from '../hooks/useDailyFrame';
 import { cx, useVideoUi } from '../theme';
-import { CallFrame, type RecoveryStatus } from './CallFrame';
+import { CallFrame, type LeftCallHow, type RecoveryStatus } from './CallFrame';
 
 /**
  * The call follows the person around the product.
@@ -65,7 +65,7 @@ export interface DockedCallHandlers {
   onJoined?: () => void;
   onLeft?: () => void;
   /** The person chose to leave (CallFrame `onLeftCall`). */
-  onLeftCall?: () => void;
+  onLeftCall?: (how: LeftCallHow) => void;
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
   onKnock?: (person: WaitingPerson) => void;
@@ -265,7 +265,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
     h.current.onParticipantsChange?.(p);
   }, [h]);
   const onEndCue = useCallback(() => h.current.onEndCue?.(), [h]);
-  const onLeftCall = useCallback(() => h.current.onLeftCall?.(), [h]);
+  const onLeftCall = useCallback((how: LeftCallHow) => h.current.onLeftCall?.(how), [h]);
   // The drawn screen carries its own round buttons in the corner window; the text bar is for Prebuilt.
   const [drawnInUse, setDrawnInUse] = useState(false);
   const onScreenChange = useCallback((s: 'drawn' | 'prebuilt') => setDrawnInUse(s === 'drawn'), []);

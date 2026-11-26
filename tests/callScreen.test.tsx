@@ -333,4 +333,118 @@ describe('which call screen a device gets', () => {
     act(() => latest().emit('left-meeting'));
     expect(left2).not.toHaveBeenCalled();
   });
+
+  describe('the People panel (F1)', () => {
+    const host = { session_id: 'me', user_name: 'Fatima', local: true, owner: true, tracks: { audio: { state: 'playable' }, video: { state: 'playable' } } };
+    const guest = { session_id: 'g1', user_name: 'Maria Garcia', local: false, tracks: { audio: { state: 'playable' }, video: { state: 'off' } } };
+
+    it('lists everyone with their microphone and camera; a guest gets no host actions', async () => {
+      nextObject = { people: { local: { ...host, owner: false }, g1: guest } } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      fireEvent.click(await screen.findByRole('button', { name: 'People in the call' }));
+      const panel = await screen.findByRole('region', { name: 'People' });
+      expect(panel.textContent).toContain('In the call (2)');
+      expect(panel.textContent).toContain('Fatima (you)');
+      expect(panel.textContent).toContain('Maria Garcia');
+      expect(screen.queryByRole('button', { name: 'Actions for Maria Garcia' })).toBeNull();
+    });
+
+    it('lets a host mute someone, telling them, and remove someone only after asking', async () => {
+      const updates: Array<[string, unknown]> = [];
+      const sent: Array<[unknown, string]> = [];
+      nextObject = {
+        people: { local: host, g1: guest },
+        updateParticipant: (id: string, u: unknown) => { updates.push([id, u]); },
+        sendAppMessage: (data: unknown, to: string) => { sent.push([data, to]); },
+      } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      fireEvent.click(await screen.findByRole('button', { name: 'People in the call' }));
+      expect((await screen.findByRole('region', { name: 'People' })).textContent).toContain('Host');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for Maria Garcia' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Mute' }));
+      expect(updates).toEqual([['g1', { setAudio: false }]]);
+      expect(sent).toEqual([[{ event: 've-muted-by-host' }, 'g1']]);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for Maria Garcia' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Remove from the call' }));
+      expect(updates).toHaveLength(1);
+      expect(screen.getByRole('alertdialog').textContent).toContain('Remove Maria Garcia from the call?');
+      fireEvent.click(screen.getByRole('button', { name: 'Remove from the call' }));
+      expect(updates).toEqual([['g1', { setAudio: false }], ['g1', { eject: true }]]);
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it('shows the host who is waiting, with Let in, and counts them on People', async () => {
+      const answered: Array<[string, unknown]> = [];
+      nextObject = {
+        people: { local: host },
+        updateWaitingParticipant: (id: string, u: unknown) => { answered.push([id, u]); return Promise.resolve({ id }); },
+      } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      act(() => latest().emit('waiting-participant-added', { participant: { id: 'w1', name: 'Maria' } }));
+      fireEvent.click(await screen.findByRole('button', { name: 'People in the call' }));
+      const panel = await screen.findByRole('region', { name: 'People' });
+      expect(panel.textContent).toContain('Waiting to join');
+      const letIn = [...panel.querySelectorAll('button')].find((b) => b.textContent === 'Let in')!;
+      fireEvent.click(letIn);
+      expect(answered).toEqual([['w1', { grantRequestedAccess: true }]]);
+    });
+
+    it('tells someone the host muted them, until they unmute', async () => {
+      const me = { ...host, owner: false, tracks: { audio: { state: 'off' }, video: { state: 'playable' } } };
+      nextObject = { people: { local: me } } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      act(() => latest().emit('app-message', { data: { event: 've-muted-by-host' }, fromId: 'h1' }));
+      expect(await screen.findByText('The host muted you. Unmute when you are ready to speak.')).toBeTruthy();
+      act(() => {
+        latest().people = { local: { ...me, tracks: { audio: { state: 'playable' }, video: { state: 'playable' } } } };
+        latest().emit('participant-updated');
+      });
+      await waitFor(() => expect(screen.queryByText('The host muted you. Unmute when you are ready to speak.')).toBeNull());
+    });
+
+    it('tells someone a host removed that they were removed, not that they left (Daily sends the error, then left-meeting)', async () => {
+      nextObject = { people: { local: { ...guest, local: true, session_id: 'me' } } } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      act(() => latest().emit('error', { action: 'error', errorMsg: 'Meeting has ended', error: { type: 'ejected', msg: 'Meeting has ended' } }));
+      act(() => latest().emit('left-meeting', { action: 'left-meeting' }));
+      expect(await screen.findByText('You were removed from the call')).toBeTruthy();
+      expect(screen.queryByText('You left the call')).toBeNull();
+    });
+
+    it('hands a removed person to the product (removed), so it can take them to its own page', async () => {
+      const onLeftCall = vi.fn();
+      nextObject = { people: { local: { ...guest, local: true, session_id: 'me' } } } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onLeftCall={onLeftCall} checkEnded={() => Promise.resolve(false)} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      act(() => latest().emit('error', { action: 'error', errorMsg: 'Meeting has ended', error: { type: 'ejected', msg: 'Meeting has ended' } }));
+      act(() => latest().emit('left-meeting', { action: 'left-meeting' }));
+      await waitFor(() => expect(onLeftCall).toHaveBeenCalledWith('removed'));
+      expect(onLeftCall).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens one panel at a time: People closes the chat', async () => {
+      nextObject = { people: { local: host } } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Chat with everyone' }));
+      expect(await screen.findByRole('region', { name: 'Chat' }).catch(() => null)).not.toBeUndefined();
+      fireEvent.click(screen.getByRole('button', { name: 'People in the call' }));
+      expect(await screen.findByRole('region', { name: 'People' })).toBeTruthy();
+      expect(document.querySelectorAll('.ve-chat')).toHaveLength(1);
+    });
+  });
 });

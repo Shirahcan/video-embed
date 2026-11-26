@@ -159,6 +159,23 @@ export interface VideoLabels {
   drawnDenied: string;
   drawnDeniedDetail: string;
   /** P2d chat. */
+  drawnPeople: string;
+  drawnPeopleShort: string;
+  drawnPeopleTitle: string;
+  drawnPeopleClose: string;
+  drawnPeopleWaiting: (count: number) => string;
+  drawnPeopleInCall: (count: number) => string;
+  drawnPeopleYou: (name: string) => string;
+  drawnPeopleHost: string;
+  drawnPeopleMicOn: string;
+  drawnPersonActions: (name: string) => string;
+  drawnPeopleMute: string;
+  drawnPeopleAlreadyMuted: string;
+  drawnPeopleRemove: string;
+  drawnRemoveTitle: (name: string) => string;
+  drawnRemoveDetail: string;
+  drawnRemoveCancel: string;
+  drawnMutedByHost: string;
   drawnChat: string;
   drawnChatShort: string;
   drawnChatUnread: (count: number) => string;
@@ -561,6 +578,23 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnAskingDetail: 'The host has been told you are here and will let you in shortly.',
   drawnDenied: 'The host did not let you in',
   drawnDeniedDetail: 'If you think this is a mistake, contact them and ask for a new link.',
+  drawnPeople: 'People in the call',
+  drawnPeopleShort: 'People',
+  drawnPeopleTitle: 'People',
+  drawnPeopleClose: 'Close people',
+  drawnPeopleWaiting: (count) => (count === 1 ? 'Waiting to join' : `Waiting to join (${count})`),
+  drawnPeopleInCall: (count) => `In the call (${count})`,
+  drawnPeopleYou: (name) => `${name} (you)`,
+  drawnPeopleHost: 'Host',
+  drawnPeopleMicOn: 'Microphone on',
+  drawnPersonActions: (name) => `Actions for ${name}`,
+  drawnPeopleMute: 'Mute',
+  drawnPeopleAlreadyMuted: 'Already muted',
+  drawnPeopleRemove: 'Remove from the call',
+  drawnRemoveTitle: (name) => `Remove ${name} from the call?`,
+  drawnRemoveDetail: 'They leave the call at once and are told they were removed.',
+  drawnRemoveCancel: 'Cancel',
+  drawnMutedByHost: 'The host muted you. Unmute when you are ready to speak.',
   drawnChat: 'Chat with everyone',
   drawnChatShort: 'Chat',
   drawnChatUnread: (count) => `Chat with everyone, ${count} new ${count === 1 ? 'message' : 'messages'}`,
