@@ -1,6 +1,7 @@
-import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
+import { Component, useEffect, useId, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
+import { CameraIcon, CameraOffIcon, LeaveIcon, MicIcon, MicOffIcon, MoreIcon, StandardScreenIcon } from './icons';
 
 /**
  * The call drawn by the kit from Daily's call object: the people's tiles, their sound, and our own
@@ -57,7 +58,7 @@ function useMediaTrack(track: MediaStreamTrack | null) {
   return ref;
 }
 
-function Tile({ person, label }: { person: DrawnPerson; label: string }) {
+function Tile({ person, label, mutedLabel }: { person: DrawnPerson; label: string; mutedLabel: string }) {
   const ref = useMediaTrack(person.videoOn ? person.video : null);
   const initials = (person.name || label).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
   return (
@@ -65,8 +66,12 @@ function Tile({ person, label }: { person: DrawnPerson; label: string }) {
       <video ref={ref} className="ve-tile__video" autoPlay playsInline muted hidden={!person.videoOn || !person.video} />
       {!person.videoOn || !person.video ? <span className="ve-tile__initials" aria-hidden="true">{initials || '?'}</span> : null}
       <span className="ve-tile__name">
+        {!person.audioOn ? (
+          <span className="ve-tile__muted" role="img" aria-label={mutedLabel}>
+            <MicOffIcon width={14} height={14} />
+          </span>
+        ) : null}
         {label}
-        {!person.audioOn ? <span className="ve-tile__muted" aria-label="muted"> (muted)</span> : null}
       </span>
     </div>
   );
@@ -75,6 +80,34 @@ function Tile({ person, label }: { person: DrawnPerson; label: string }) {
 function Sound({ track }: { track: MediaStreamTrack | null }) {
   const ref = useMediaTrack(track);
   return <audio ref={ref} autoPlay />;
+}
+
+/** A round icon button with its short label underneath (the call's control bar). */
+function Control({ label, ariaLabel, icon, onClick, pressed, expanded, off = false, danger = false }: {
+  label: string;
+  ariaLabel: string;
+  icon: ReactNode;
+  onClick: () => void;
+  pressed?: boolean;
+  expanded?: boolean;
+  off?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={cx('ve-ctl', off && 've-ctl--off', danger && 've-ctl--danger')}
+      aria-label={ariaLabel}
+      title={ariaLabel}
+      aria-pressed={pressed}
+      aria-expanded={expanded}
+      aria-haspopup={expanded === undefined ? undefined : 'menu'}
+      onClick={onClick}
+    >
+      <span className="ve-ctl__disc">{icon}</span>
+      <span className="ve-ctl__label" aria-hidden="true">{label}</span>
+    </button>
+  );
 }
 
 export interface DrawnStageProps {
@@ -86,9 +119,11 @@ export interface DrawnStageProps {
 }
 
 export function DrawnStage({ call, onLeave, onUseStandard }: DrawnStageProps) {
-  const { labels, classNames } = useVideoUi();
+  const { labels } = useVideoUi();
   const [people, setPeople] = useState<DrawnPerson[]>(() => drawnPeople(call.participants() as Record<string, DailyParticipant>));
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLSpanElement>(null);
+  const standardDetailId = useId();
 
   useEffect(() => {
     const sync = () => {
@@ -106,62 +141,88 @@ export function DrawnStage({ call, onLeave, onUseStandard }: DrawnStageProps) {
     };
   }, [call]);
 
+  // The menu closes on Escape and on a click anywhere else.
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    const onDown = (e: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown);
+    };
+  }, [menuOpen]);
+
   const self = people.find((p) => p.local) ?? null;
   const others = people.filter((p) => !p.local);
+  const micOff = self ? !self.audioOn : false;
+  const camOff = self ? !self.videoOn : false;
 
   return (
     <div className="ve-drawn" role="region" aria-label={labels.drawnRegion}>
       <div className={cx('ve-drawn__grid', `ve-drawn__grid--${Math.min(others.length, 4)}`)}>
         {others.length === 0 ? <p className="ve-drawn__waiting">{labels.drawnWaiting}</p> : null}
-        {others.map((p) => <Tile key={p.id} person={p} label={p.name || '?'} />)}
+        {others.map((p) => <Tile key={p.id} person={p} label={p.name || '?'} mutedLabel={labels.drawnMuted} />)}
       </div>
-      {self ? <Tile person={self} label={labels.drawnYou} /> : null}
+      {self ? <Tile person={self} label={labels.drawnYou} mutedLabel={labels.drawnMuted} /> : null}
 
       <div className="ve-drawn__sound" hidden>
         {others.map((p) => <Sound key={p.id} track={p.audio} />)}
       </div>
 
-      <div className="ve-drawn__bar">
-        <button
-          type="button"
-          className={cx('ve-btn', classNames.button)}
-          aria-pressed={self ? !self.audioOn : false}
-          onClick={() => call.setLocalAudio(!(self?.audioOn ?? true))}
-        >
-          {self?.audioOn === false ? labels.drawnUnmute : labels.drawnMute}
-        </button>
-        <button
-          type="button"
-          className={cx('ve-btn', classNames.button)}
-          aria-pressed={self ? !self.videoOn : false}
-          onClick={() => call.setLocalVideo(!(self?.videoOn ?? true))}
-        >
-          {self?.videoOn === false ? labels.drawnCameraOn : labels.drawnCameraOff}
-        </button>
-        <span className="ve-drawn__menu">
-          <button type="button" className={cx('ve-btn', classNames.button)} aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => setMenuOpen((o) => !o)}>
-            {labels.drawnMore}
-          </button>
+      <div className="ve-drawn__bar" role="toolbar" aria-label={labels.drawnControls}>
+        <Control
+          label={micOff ? labels.drawnUnmute : labels.drawnMute}
+          ariaLabel={micOff ? labels.drawnUnmute : labels.drawnMute}
+          pressed={micOff}
+          off={micOff}
+          onClick={() => call.setLocalAudio(micOff)}
+          icon={micOff ? <MicOffIcon /> : <MicIcon />}
+        />
+        <Control
+          label={camOff ? labels.drawnVideoStart : labels.drawnVideoStop}
+          ariaLabel={camOff ? labels.drawnCameraOn : labels.drawnCameraOff}
+          pressed={camOff}
+          off={camOff}
+          onClick={() => call.setLocalVideo(camOff)}
+          icon={camOff ? <CameraOffIcon /> : <CameraIcon />}
+        />
+        <span className="ve-drawn__menu" ref={menuRef}>
+          <Control
+            label={labels.drawnMoreShort}
+            ariaLabel={labels.drawnMore}
+            expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+            icon={<MoreIcon />}
+          />
           {menuOpen ? (
-            <span className="ve-drawn__menu-list" role="menu">
+            <span className="ve-drawn__menu-list" role="menu" aria-label={labels.drawnMore}>
               <button
                 type="button"
                 role="menuitem"
                 className="ve-drawn__menu-item"
-                title={labels.drawnUseStandardDetail}
+                aria-label={labels.drawnUseStandard}
+                aria-describedby={standardDetailId}
                 onClick={() => {
                   setMenuOpen(false);
                   onUseStandard();
                 }}
               >
-                {labels.drawnUseStandard}
+                <span className="ve-drawn__menu-icon"><StandardScreenIcon /></span>
+                <span className="ve-drawn__menu-text">
+                  <span className="ve-drawn__menu-title">{labels.drawnUseStandard}</span>
+                  <span className="ve-drawn__menu-detail" id={standardDetailId}>{labels.drawnUseStandardDetail}</span>
+                </span>
               </button>
             </span>
           ) : null}
         </span>
-        <button type="button" className={cx('ve-btn ve-btn--danger-solid', classNames.button)} onClick={onLeave}>
-          {labels.drawnLeave}
-        </button>
+        <Control label={labels.drawnLeave} ariaLabel={labels.drawnLeave} danger onClick={onLeave} icon={<LeaveIcon />} />
       </div>
     </div>
   );

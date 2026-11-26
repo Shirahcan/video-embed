@@ -120,6 +120,11 @@ export interface VideoLabels {
   drawnUseStandard: string;
   drawnUseStandardDetail: string;
   drawnRegion: string;
+  drawnControls: string;
+  drawnMuted: string;
+  drawnVideoStop: string;
+  drawnVideoStart: string;
+  drawnMoreShort: string;
   heldElsewhereDetail: string;
   moveCallHere: string;
   // Call continuity: the same person on another device (InCallElsewhere)
@@ -456,6 +461,11 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnUseStandard: 'Use the standard call screen',
   drawnUseStandardDetail: 'Switches this device to the standard call screen. You join again with one click.',
   drawnRegion: 'Call',
+  drawnControls: 'Call controls',
+  drawnMuted: 'Muted',
+  drawnVideoStop: 'Stop video',
+  drawnVideoStart: 'Start video',
+  drawnMoreShort: 'More',
   heldElsewhereDetail: 'Joining twice from one device makes both microphones live, which causes echo for everyone else. Switch back to the other tab, or move the call here.',
   moveCallHere: 'Move the call here',
   inCallElsewhereTitle: "You're in this call on another device",

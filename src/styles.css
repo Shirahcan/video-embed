@@ -237,20 +237,63 @@
 .ve-over__go { margin-top: 24px; width: 100%; }
 .ve-other-tab { display: inline-block; padding: 6px 12px; border-radius: 999px; background: var(--ve-surface); border: 1px solid var(--ve-accent); color: var(--ve-ink); }
 
-/* The drawn call screen (Daily's call object, drawn by the kit). */
-.ve-drawn { position: absolute; inset: 0; display: flex; flex-direction: column; background: #0f172a; color: #fff; }
-.ve-drawn__grid { flex: 1; min-height: 0; display: grid; gap: 8px; padding: 8px; grid-template-columns: 1fr; place-items: stretch; }
+/* The drawn call screen (Daily's call object, drawn by the kit). Every value is a token a product can
+   override; the defaults are Portify's: a deep slate stage, a glass control capsule, the accent ring. */
+:where(:root) {
+  --ve-stage: #0f172a;
+  --ve-stage-glow: rgb(67 97 238 / 0.22);
+  --ve-tile: #1e293b;
+  --ve-control: rgb(255 255 255 / 0.12);
+  --ve-control-hover: rgb(255 255 255 / 0.2);
+  --ve-control-ink: #ffffff;
+  --ve-control-label: #cbd5e1;
+  --ve-control-size: 48px;
+  --ve-glass: rgb(15 23 42 / 0.55);
+  --ve-glass-border: rgb(255 255 255 / 0.14);
+}
+.ve-drawn { position: absolute; inset: 0; display: flex; flex-direction: column; color: #fff; font-family: var(--ve-font); container-type: inline-size;
+  background: radial-gradient(120% 60% at 50% -10%, var(--ve-stage-glow), transparent 60%), var(--ve-stage); }
+.ve-drawn__grid { flex: 1; min-height: 0; display: grid; gap: 10px; padding: 12px 12px 0; grid-template-columns: 1fr; }
 .ve-drawn__grid--2, .ve-drawn__grid--3, .ve-drawn__grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.ve-drawn__waiting { align-self: center; justify-self: center; margin: 0; color: #cbd5e1; }
-.ve-tile { position: relative; min-height: 0; border-radius: 16px; overflow: hidden; background: #1e293b; display: flex; align-items: center; justify-content: center; }
+.ve-drawn__waiting { align-self: center; justify-self: center; margin: 0; padding: 10px 18px; border-radius: var(--ve-radius-pill); background: var(--ve-glass); border: 1px solid var(--ve-glass-border); color: var(--ve-control-label); font-size: 14px; }
+
+.ve-tile { position: relative; min-height: 0; border-radius: 18px; overflow: hidden; background: var(--ve-tile); display: flex; align-items: center; justify-content: center; }
 .ve-tile__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.ve-tile__initials { width: 72px; height: 72px; border-radius: 999px; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 600; }
-.ve-tile__name { position: absolute; left: 8px; bottom: 8px; padding: 2px 10px; border-radius: 999px; background: rgb(0 0 0 / 0.55); font-size: 12px; }
-.ve-tile--self { position: absolute; right: 16px; bottom: 72px; width: min(26%, 240px); aspect-ratio: 16 / 9; z-index: 2; box-shadow: 0 4px 16px rgb(0 0 0 / 0.4); }
-.ve-tile--self .ve-tile__initials { width: 40px; height: 40px; font-size: 14px; }
-.ve-drawn__bar { position: relative; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 10px; z-index: 3; }
-.ve-drawn__bar .ve-btn { white-space: nowrap; outline: none; }
-.ve-drawn__menu { position: relative; }
-.ve-drawn__menu-list { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); min-width: 240px; padding: 6px; border-radius: 12px; background: var(--ve-surface, #fff); color: var(--ve-ink, #0f172a); box-shadow: 0 8px 24px rgb(0 0 0 / 0.3); display: flex; flex-direction: column; }
-.ve-drawn__menu-item { text-align: left; padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; white-space: nowrap; outline: none; }
-.ve-drawn__menu-item:hover, .ve-drawn__menu-item:focus-visible { background: rgb(67 97 238 / 0.1); }
+.ve-tile__initials { width: 88px; height: 88px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 600; letter-spacing: 0.02em;
+  color: #fff; background: color-mix(in srgb, var(--ve-accent) 55%, var(--ve-tile)); box-shadow: 0 0 0 6px color-mix(in srgb, var(--ve-accent) 18%, transparent); }
+.ve-tile__name { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 20px); padding: 4px 10px; border-radius: var(--ve-radius-pill);
+  background: var(--ve-glass); border: 1px solid var(--ve-glass-border); backdrop-filter: blur(8px); font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ve-tile__muted { display: inline-flex; color: #fca5a5; }
+.ve-tile--self { position: absolute; right: 20px; bottom: 104px; width: min(24%, 240px); aspect-ratio: 16 / 9; z-index: 2; border: 1px solid rgb(255 255 255 / 0.2); box-shadow: 0 10px 30px rgb(0 0 0 / 0.45); }
+.ve-tile--self .ve-tile__initials { width: 44px; height: 44px; font-size: 16px; box-shadow: none; }
+.ve-tile--self .ve-tile__name { left: 6px; bottom: 6px; padding: 2px 8px; font-size: 11px; }
+
+.ve-drawn__bar { position: relative; z-index: 3; align-self: center; display: flex; align-items: flex-start; gap: 14px; margin: 12px auto 14px; padding: 10px 18px 8px; border-radius: 28px;
+  background: var(--ve-glass); border: 1px solid var(--ve-glass-border); backdrop-filter: blur(16px); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); }
+.ve-ctl { display: inline-flex; flex-direction: column; align-items: center; gap: 5px; min-width: 56px; padding: 0; border: 0; background: transparent; color: var(--ve-control-label); font: inherit; cursor: pointer; outline: none; }
+.ve-ctl__disc { width: var(--ve-control-size); height: var(--ve-control-size); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ve-control); color: var(--ve-control-ink); transition: background-color 120ms ease, transform 120ms ease; }
+.ve-ctl:hover .ve-ctl__disc { background: var(--ve-control-hover); }
+.ve-ctl:active .ve-ctl__disc { transform: scale(0.95); }
+.ve-ctl:focus-visible .ve-ctl__disc { box-shadow: 0 0 0 3px var(--ve-stage), 0 0 0 5px var(--ve-accent); }
+.ve-ctl__label { font-size: 11px; font-weight: 600; white-space: nowrap; line-height: 1.2; }
+.ve-ctl--off .ve-ctl__disc { background: var(--ve-danger); }
+.ve-ctl--off:hover .ve-ctl__disc { background: color-mix(in srgb, var(--ve-danger) 85%, #fff); }
+.ve-ctl--danger .ve-ctl__disc { width: calc(var(--ve-control-size) * 1.35); background: var(--ve-danger); }
+.ve-ctl--danger:hover .ve-ctl__disc { background: color-mix(in srgb, var(--ve-danger) 85%, #000); }
+.ve-ctl[aria-expanded="true"] .ve-ctl__disc { background: var(--ve-control-hover); }
+
+.ve-drawn__menu { position: relative; display: inline-flex; }
+.ve-drawn__menu-list { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: 300px; padding: 6px; border-radius: 16px; z-index: 4;
+  background: var(--ve-surface); color: var(--ve-ink); border: 1px solid var(--ve-border); box-shadow: 0 16px 40px rgb(15 23 42 / 0.35); display: flex; flex-direction: column; }
+.ve-drawn__menu-item { display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; outline: none; }
+.ve-drawn__menu-item:hover, .ve-drawn__menu-item:focus-visible { background: color-mix(in srgb, var(--ve-accent) 10%, transparent); }
+.ve-drawn__menu-icon { display: inline-flex; margin-top: 1px; color: var(--ve-accent); }
+.ve-drawn__menu-text { display: flex; flex-direction: column; gap: 2px; }
+.ve-drawn__menu-title { font-size: 14px; font-weight: 600; }
+.ve-drawn__menu-detail { font-size: 12px; color: var(--ve-ink-muted); line-height: 1.4; }
+
+/* A short or narrow stage: smaller controls, labels kept. */
+@container (max-width: 520px) { .ve-drawn__bar { gap: 8px; padding: 8px 10px 6px; } .ve-ctl { min-width: 44px; } }
+@media (max-height: 640px) { .ve-drawn { --ve-control-size: 40px; } .ve-tile--self { bottom: 92px; } }
+@media (prefers-reduced-motion: reduce) { .ve-ctl__disc { transition: none; } .ve-ctl:active .ve-ctl__disc { transform: none; } }
