@@ -204,7 +204,8 @@ export function useDailyFrame({
         let knock: 'none' | 'asking' | 'denied' | 'admitted' = 'none';
         const readAccess = (): CallAccess => {
           try {
-            const level = (frame.accessState?.() as { access?: { level?: string } } | undefined)?.access?.level;
+            // Daily supports accessState only on a call object; on Prebuilt it logs an error, so ask only there.
+            const level = mode === 'drawn' ? (frame.accessState?.() as { access?: { level?: string } } | undefined)?.access?.level : undefined;
             let next: CallAccess = level === 'lobby' ? 'lobby' : level === 'full' ? 'full' : null;
             if (knock === 'denied') next = 'denied';
             else if (next === 'lobby' && knock === 'asking') next = 'asking';
