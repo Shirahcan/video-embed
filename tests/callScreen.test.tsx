@@ -117,6 +117,9 @@ describe('which call screen a device gets', () => {
     expect(await screen.findByRole('region', { name: 'Call' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Mute' }));
     expect(latest().audio).toEqual([false]);
+    // Left: no frozen call with live-looking buttons.
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Call' })).toBeNull());
     unmount();
 
     made.length = 0;

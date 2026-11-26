@@ -500,7 +500,8 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       <div className="ve-stage">
         <div ref={containerRef} className="ve-frame" />
 
-        {screen === 'drawn' && frame.call && !ended ? (
+        {/* Only while the person is getting in or in the call: after leaving, a frozen call with live-looking buttons would mislead. */}
+        {screen === 'drawn' && frame.call && !ended && frame.state !== 'left' && frame.state !== 'error' ? (
           <DrawnStageBoundary onCrash={fallBackToPrebuilt}>
             <DrawnStage
               call={frame.call}
