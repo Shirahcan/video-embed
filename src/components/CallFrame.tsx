@@ -7,6 +7,8 @@ import { InCallElsewhere } from './InCallElsewhere';
 import { useDailyFrame, type CallParticipant, type WaitingPerson } from '../hooks/useDailyFrame';
 import { useSingleTabCall } from '../hooks/useSingleTabCall';
 import { forgetInCall, rememberInCall } from '../callMemory';
+import { chooseCallScreen, preferStandardScreen, type CallScreen } from '../callScreen';
+import { DrawnStage, DrawnStageBoundary } from './DrawnStage';
 import { cx, useVideoUi } from '../theme';
 import { BackupCallOffer, type BackupCall } from './BackupCallOffer';
 import { KnockBar } from './KnockBar';
@@ -80,6 +82,13 @@ export interface CallFrameProps {
   /** Ask "Leave the call?" (the browser's own prompt) before the tab closes or reloads mid-call. */
   confirmLeave?: boolean;
   /**
+   * The product allows the DRAWN call screen (its own gate). The device still decides
+   * (`chooseCallScreen`): desktop browsers with a floating window get it, everything else keeps
+   * Daily Prebuilt. A failure before joining, a lobby, or a crash while drawing falls back to
+   * Prebuilt once. Default off: Prebuilt, exactly as before.
+   */
+  drawn?: boolean;
+  /**
    * The last rescue: when the room cannot be fixed, offer a matching meeting on the product's
    * backup account. With `url` set (someone already switched), everyone on the call is told.
    * Absent = no backup is offered.
@@ -141,7 +150,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, continuity = false, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, continuity = false, enabled = true, className, style }: CallFrameProps) {
   // Call continuity: one id per browser, and what to do about the person's other device.
   const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
   // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
@@ -297,6 +306,15 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     if (rememberAs) forgetInCall(rememberAs);
   }, [rememberAs]);
 
+  // Which screen draws the call. Decided once per frame by the device; a fallback only ever goes to Prebuilt.
+  const [screen, setScreen] = useState<CallScreen>(() => chooseCallScreen(drawn));
+  // Switching screens tears the call down: its leave is not "you left" (no host prompt, no product onLeft).
+  const switchingRef = useRef(false);
+  const fallBackToPrebuilt = useCallback(() => {
+    switchingRef.current = true;
+    setScreen('prebuilt');
+  }, []);
+
   // The room's address without its pass: the same in every tab on this call.
   const tab = useSingleTabCall(singleTab ? (joinUrl.split('?')[0] ?? null) : null);
 
@@ -306,7 +324,11 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     userName,
     enabled: enabled && !tab.heldElsewhere && continuityStep === 'clear',
     startQuiet: joinQuiet,
+    mode: screen,
+    // The drawn screen cannot knock yet: Prebuilt runs the knock for a person left waiting.
+    onLobby: fallBackToPrebuilt,
     onJoined: () => {
+      switchingRef.current = false;
       joinedNow(takeOverRef.current);
       takeOverRef.current = false;
       inCallRef.current = true;
@@ -317,6 +339,12 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       onJoined?.();
     },
     onLeft: () => {
+      if (switchingRef.current) {
+        // The drawn call being swapped for Prebuilt: not a leave anybody should hear about.
+        leftNow();
+        inCallRef.current = false;
+        return;
+      }
       leftNow();
       // A host who leaves by the call's own Leave button is asked whether the call is over.
       const wasInCall = inCallRef.current;
@@ -330,7 +358,14 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
       setDeviceBannerHidden(false);
       onDeviceError?.(d);
     },
-    onFailure: (f) => void handleFailure(f),
+    onFailure: (f) => {
+      // The drawn screen failing before the person got in: the standard screen takes over, once.
+      if (screen === 'drawn' && !inCallRef.current && f.kind !== 'ejected') {
+        fallBackToPrebuilt();
+        return;
+      }
+      void handleFailure(f);
+    },
     onKnock,
     onParticipantsChange,
   });
@@ -464,6 +499,19 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
 
       <div className="ve-stage">
         <div ref={containerRef} className="ve-frame" />
+
+        {screen === 'drawn' && frame.call && !ended ? (
+          <DrawnStageBoundary onCrash={fallBackToPrebuilt}>
+            <DrawnStage
+              call={frame.call}
+              onLeave={frame.leave}
+              onUseStandard={() => {
+                preferStandardScreen();
+                fallBackToPrebuilt();
+              }}
+            />
+          </DrawnStageBoundary>
+        ) : null}
 
         {overlay && !ended && frame.state === 'joined' ? <div className="ve-stage-overlay">{overlay}</div> : null}
 

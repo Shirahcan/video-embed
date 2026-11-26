@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 import type { DailyCall } from '@daily-co/daily-js';
 import { classifyCallError, type CallFailure } from '../callErrors';
 import { diagnoseMediaError, type MediaDiagnosis } from '../diagnose';
+import { splitJoinUrl, type CallScreen } from '../callScreen';
 
 /**
  * Owns one Daily Prebuilt frame (DailyIframe.createFrame), ported from Portify's hardened
@@ -55,7 +56,21 @@ export interface UseDailyFrameOptions {
    * two live microphones of the same person never echo). Read at join time.
    */
   startQuiet?: boolean;
+  /**
+   * `prebuilt` (default): Daily's own call screen in an iframe. `drawn`: Daily's call object, with
+   * no screen of its own; the caller draws the call from `call`. Changing it rebuilds the call.
+   */
+  mode?: CallScreen;
+  /**
+   * Drawn mode only: the person landed in the room's lobby (waiting to be let in). Daily still fires
+   * joined-meeting then, so it is NOT reported as joined; the caller decides (CallFrame falls back to
+   * Prebuilt, which runs its own knock).
+   */
+  onLobby?: () => void;
 }
+
+/** Where this person stands in the room: `lobby` = waiting to be let in (nobody can see them yet). */
+export type CallAccess = 'full' | 'lobby' | null;
 
 export interface UseDailyFrameResult {
   state: FrameState;
@@ -71,6 +86,10 @@ export interface UseDailyFrameResult {
   leave: () => void;
   /** Turn this person's own microphone on or off (the call dock's mute, while the call's own bar is hidden). */
   setMic: (on: boolean) => void;
+  /** The live Daily call (drawn mode draws from it). Null until created. */
+  call: DailyCall | null;
+  /** This person's access once joined (drawn mode; Prebuilt handles its own lobby). */
+  access: CallAccess;
 }
 
 const READY_FAILSAFE_MS = 12_000;
@@ -108,6 +127,8 @@ export function useDailyFrame({
   onKnock,
   onParticipantsChange,
   startQuiet = false,
+  mode = 'prebuilt',
+  onLobby,
 }: UseDailyFrameOptions): UseDailyFrameResult {
   const [state, setState] = useState<FrameState>('idle');
   const [failure, setFailure] = useState<CallFailure | null>(null);
@@ -115,17 +136,19 @@ export function useDailyFrame({
   const [participantCount, setParticipantCount] = useState(0);
   const [waiting, setWaiting] = useState<WaitingPerson[]>([]);
   const [nonce, setNonce] = useState(0);
+  const [call, setCall] = useState<DailyCall | null>(null);
+  const [access, setAccess] = useState<CallAccess>(null);
 
   const frameRef = useRef<DailyCall | null>(null);
   const creatingRef = useRef(false);
-  const handlersRef = useRef({ onJoined, onLeft, onDeviceError, onFailure, onKnock, onParticipantsChange });
+  const handlersRef = useRef({ onJoined, onLeft, onDeviceError, onFailure, onKnock, onParticipantsChange, onLobby });
   const urlRef = useRef(url);
   const nameRef = useRef(userName);
   const quietRef = useRef(startQuiet);
 
   // Latest callbacks and URL without rebuilding the frame (a re-minted token must not).
   useLayoutEffect(() => {
-    handlersRef.current = { onJoined, onLeft, onDeviceError, onFailure, onKnock, onParticipantsChange };
+    handlersRef.current = { onJoined, onLeft, onDeviceError, onFailure, onKnock, onParticipantsChange, onLobby };
     urlRef.current = url;
     nameRef.current = userName;
     quietRef.current = startQuiet;
@@ -160,16 +183,30 @@ export function useDailyFrame({
         const existing = DailyIframe.getCallInstance?.();
         if (existing) await existing.destroy().catch(() => {});
 
-        const frame = DailyIframe.createFrame(container, {
-          showLeaveButton: true,
-          showFullscreenButton: false,
-          iframeStyle: { width: '100%', height: '100%', border: '0' } as unknown as Partial<CSSStyleDeclaration>,
-        });
+        const frame = mode === 'drawn'
+          ? DailyIframe.createCallObject({ subscribeToTracksAutomatically: true })
+          : DailyIframe.createFrame(container, {
+            showLeaveButton: true,
+            showFullscreenButton: false,
+            iframeStyle: { width: '100%', height: '100%', border: '0' } as unknown as Partial<CSSStyleDeclaration>,
+          });
         if (cancelled) {
           await frame.destroy().catch(() => {});
           return;
         }
         frameRef.current = frame;
+        setCall(frame);
+        const readAccess = (): CallAccess => {
+          try {
+            const level = (frame.accessState?.() as { access?: { level?: string } } | undefined)?.access?.level;
+            const next: CallAccess = level === 'lobby' ? 'lobby' : level === 'full' ? 'full' : null;
+            setAccess(next);
+            return next;
+          } catch {
+            /* torn down */
+            return null;
+          }
+        };
 
         const syncParticipants = () => {
           try {
@@ -191,7 +228,13 @@ export function useDailyFrame({
           .on('loaded', reveal)
           .on('joining-meeting', reveal)
           .on('started-camera', reveal)
+          .on('access-state-updated', readAccess)
           .on('joined-meeting', () => {
+            if (readAccess() === 'lobby' && mode === 'drawn') {
+              setState('ready');
+              handlersRef.current.onLobby?.();
+              return;
+            }
             setState('joined');
             syncParticipants();
             handlersRef.current.onJoined?.();
@@ -245,7 +288,10 @@ export function useDailyFrame({
         const joinUrl = urlRef.current;
         if (!joinUrl) return;
         const quiet = quietRef.current ? { startAudioOff: true, startVideoOff: true } : {};
-        await frame.join(nameRef.current ? { url: joinUrl, userName: nameRef.current, ...quiet } : { url: joinUrl, ...quiet });
+        // The call object ignores a pass inside the URL (the person lands in the lobby): pass it apart.
+        const target = mode === 'drawn' ? splitJoinUrl(joinUrl) : { url: joinUrl, token: null };
+        const where = target.token ? { url: target.url, token: target.token } : { url: target.url };
+        await frame.join(nameRef.current ? { ...where, userName: nameRef.current, ...quiet } : { ...where, ...quiet });
       } catch (err) {
         // join() rejects for the same failure the `error` event already reported: once only.
         if (cancelled || reported) return;
@@ -268,10 +314,12 @@ export function useDailyFrame({
       const frame = frameRef.current;
       frameRef.current = null;
       setWaiting([]);
+      setCall(null);
+      setAccess(null);
       if (frame) void frame.destroy().catch(() => {});
     };
-    // identity, not url: a re-minted token must not rebuild a live call. `nonce` rebuilds.
-  }, [identity, enabled, nonce, containerRef]);
+    // identity, not url: a re-minted token must not rebuild a live call. `nonce` and `mode` rebuild.
+  }, [identity, enabled, nonce, containerRef, mode]);
 
   const setDevices = useCallback((devices: { audioDeviceId?: string; videoDeviceId?: string }) => {
     const frame = frameRef.current;
@@ -294,5 +342,5 @@ export function useDailyFrame({
     }
   }, []);
 
-  return { state, failure, deviceError, participantCount, waiting, rejoin, setDevices, leave, setMic };
+  return { state, failure, deviceError, participantCount, waiting, rejoin, setDevices, leave, setMic, call, access };
 }

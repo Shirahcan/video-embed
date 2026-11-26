@@ -51,6 +51,8 @@ export interface DockedCall {
   rememberAs?: string | null;
   /** Ask "Leave the call?" before the tab closes or reloads mid-call (CallFrame `confirmLeave`). */
   confirmLeave?: boolean;
+  /** The product allows the drawn call screen (CallFrame `drawn`); the device still decides. */
+  drawn?: boolean;
 }
 
 /** The call's behaviour, from the page that owns it. Kept in a ref: changing them never touches the frame. */
@@ -113,7 +115,8 @@ function sameCall(a: DockedCall, b: DockedCall): boolean {
     (a.backup?.url ?? null) === (b.backup?.url ?? null) &&
     Boolean(a.continuity) === Boolean(b.continuity) &&
     (a.rememberAs ?? null) === (b.rememberAs ?? null) &&
-    Boolean(a.confirmLeave) === Boolean(b.confirmLeave)
+    Boolean(a.confirmLeave) === Boolean(b.confirmLeave) &&
+    Boolean(a.drawn) === Boolean(b.drawn)
   );
 }
 
@@ -300,6 +303,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             continuity={Boolean(call.continuity)}
             rememberAs={call.rememberAs ?? null}
             confirmLeave={Boolean(call.confirmLeave)}
+            drawn={Boolean(call.drawn)}
             onJoined={onJoined}
             onLeft={onLeft}
             onFailure={onFailure}
