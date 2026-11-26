@@ -310,6 +310,7 @@ const ISSUE_WHAT: Record<string, string> = {
   'meeting-full': 'The call was full',
   'unsupported-browser': 'Their browser was too old',
   network: 'Their connection dropped',
+  signaling: "The video service's connection to them broke",
   'blocked-browser': 'Their browser blocked the device',
   'blocked-system': 'Their computer blocked the browser from the device',
   'not-found': 'No device was found',
