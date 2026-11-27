@@ -84,8 +84,8 @@ class StageCall {
     this.received.push(s);
     return Promise.resolve();
   }
-  setLocalAudio() {}
-  setLocalVideo() {}
+  setLocalAudio(_on?: boolean) {}
+  setLocalVideo(_on?: boolean) {}
 }
 
 describe('layout choice and pin (F5)', () => {
@@ -211,5 +211,43 @@ describe('layout choice and pin on the stage (F5)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More options' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Full screen' }));
     expect(requested[0]?.classList.contains('ve-drawn')).toBe(true);
+  });
+});
+
+describe('transcribing badge and shortcuts (F6)', () => {
+  const pair = () => ({
+    local: { session_id: 'me', user_name: 'Ada', local: true, audio: true, video: true, tracks: {} },
+    m: { session_id: 'm', user_name: 'Maria Garcia', local: false, tracks: {} },
+  });
+
+  it('shows Transcribing when the product says so, then follows Daily', () => {
+    const call = new StageCall();
+    call.people = pair();
+    render(<DrawnStage call={call as unknown as DailyCall} onLeave={() => {}} onUseStandard={() => {}} transcribing />);
+    expect(screen.getByText('Transcribing')).toBeTruthy();
+    act(() => call.emit('transcription-stopped'));
+    expect(screen.queryByText('Transcribing')).toBeNull();
+    act(() => call.emit('transcription-started'));
+    expect(screen.getByText('Transcribing')).toBeTruthy();
+  });
+
+  it('Ctrl+D mutes and Ctrl+E turns the camera off, never while typing, and the tooltip names them', () => {
+    const call = new StageCall();
+    call.people = pair();
+    const audio: boolean[] = [];
+    const video: boolean[] = [];
+    call.setLocalAudio = (on: boolean) => { audio.push(on); };
+    call.setLocalVideo = (on: boolean) => { video.push(on); };
+    render(<DrawnStage call={call as unknown as DailyCall} onLeave={() => {}} onUseStandard={() => {}} />);
+    fireEvent.keyDown(window, { key: 'd', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'e', ctrlKey: true });
+    expect(audio).toEqual([false]);
+    expect(video).toEqual([false]);
+    const box = document.createElement('textarea');
+    document.body.appendChild(box);
+    fireEvent.keyDown(box, { key: 'd', ctrlKey: true });
+    expect(audio).toEqual([false]);
+    box.remove();
+    expect(screen.getByRole('button', { name: 'Mute' }).getAttribute('title')).toMatch(/\((Ctrl\+D|⌘D)\)$/);
   });
 });

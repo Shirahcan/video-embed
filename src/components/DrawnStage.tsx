@@ -24,6 +24,7 @@ import { arrangeStage, arrangementLayers, drawnPeople, fitTiles, presenterOf, ty
 import { Sound } from './DrawnTile';
 import { DrawnTiles } from './DrawnTiles';
 import { useLayoutMode, useStageFullscreen } from '../drawnView';
+import { shortcutLabel, useCallShortcuts } from '../drawnShortcuts';
 import { DrawnDeviceMenu } from './DrawnDeviceMenu';
 import { useDrawnDevices } from '../drawnDevices';
 import type { CallAccess, WaitingPerson } from '../hooks/useDailyFrame';
@@ -74,9 +75,11 @@ export interface DrawnStageProps {
   onRemovePerson?: (person: { userId: string | null; name: string }) => void;
   /** The product's own side panels (F3); never shown in the float or the corner window. */
   panels?: CallPanel[];
+  /** F6: the call is transcribed now (the product knows at join; Daily's events keep it current). */
+  transcribing?: boolean;
 }
 
-export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices, waiting = [], onAnswer, onRemovePerson, panels = [] }: DrawnStageProps) {
+export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices, waiting = [], onAnswer, onRemovePerson, panels = [], transcribing = false }: DrawnStageProps) {
   const { labels } = useVideoUi();
   const devices = useDrawnDevices(call, { microphone: labels.microphone, camera: labels.camera, speaker: labels.speaker }, setDevices);
   // The browser refused to play the call's sound (no click on the page yet): one button fixes it.
@@ -150,6 +153,19 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
   const [people, setPeople] = useState<DrawnPerson[]>(() => drawnPeople(call.participants() as Record<string, DailyParticipant>));
   // Who is speaking now (Daily's active speaker), for the ring on their tile.
   const [speakerId, setSpeakerId] = useState<string | null>(null);
+  // F6: transcription as the product knew it at join, then as Daily says it starts and stops.
+  const [liveTranscribing, setLiveTranscribing] = useState<boolean | null>(null);
+  useEffect(() => {
+    const on = () => setLiveTranscribing(true);
+    const off = () => setLiveTranscribing(false);
+    call.on('transcription-started', on);
+    call.on('transcription-stopped', off);
+    return () => {
+      call.off('transcription-started', on);
+      call.off('transcription-stopped', off);
+    };
+  }, [call]);
+  const showTranscribing = liveTranscribing ?? transcribing;
   // F5: the person's layout choice (per device), a pinned tile (this call), and full screen.
   const view = useLayoutMode();
   const [pinnedId, setPinnedId] = useState<string | null>(null);
@@ -217,6 +233,12 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
   // "The host muted you" holds only while the microphone is still off.
   const mutedByHost = hostControls.mutedByHost && micOff;
   const camOff = self ? !self.videoOn : false;
+  // F6: Meet's keys, on the full room only (the corner window and the float keep their four buttons).
+  useCallShortcuts({
+    enabled: !compact && access !== 'asking' && access !== 'denied',
+    onMic: () => call.setLocalAudio(micOff),
+    onCam: () => call.setLocalVideo(camOff),
+  });
   // You are presenting when your own screen track is live; you never see it back (no mirror tunnel).
   const presenting = Boolean(self?.screen);
   const togglePresent = () => {
@@ -307,6 +329,13 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
   return (
     <div ref={rootRef} className={cx('ve-drawn', panel && 've-drawn--chat', float.host && 've-drawn--floated')} role="region" aria-label={labels.drawnRegion}>
       {floatPortal}
+      {showTranscribing ? (
+        <span className="ve-drawn__badge" role="status" title={labels.drawnTranscribingDetail}>
+          <span className="ve-drawn__badge-dot" aria-hidden="true" />
+          {labels.drawnTranscribing}
+          <span className="ve-sr-only">{labels.drawnTranscribingDetail}</span>
+        </span>
+      ) : null}
       {float.host ? (
         <div className="ve-drawn__floated" role="status">
           <PopOutIcon width={28} height={28} />
@@ -423,6 +452,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             pressed={micOff}
             off={micOff}
             onClick={() => call.setLocalAudio(micOff)}
+            shortcut={shortcutLabel('d')}
             icon={micOff ? <MicOffIcon /> : <MicIcon />}
           />
         </DrawnDeviceMenu>
@@ -437,6 +467,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             pressed={camOff}
             off={camOff}
             onClick={() => call.setLocalVideo(camOff)}
+            shortcut={shortcutLabel('e')}
             icon={camOff ? <CameraOffIcon /> : <CameraIcon />}
           />
         </DrawnDeviceMenu>

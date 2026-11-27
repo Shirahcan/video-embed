@@ -542,3 +542,8 @@
 .ve-drawn:fullscreen { border-radius: 0; }
 .ve-drawn__menu-list > [role='group'] { display: contents; }
 .ve-drawn__menu-group { display: block; }
+
+/* F6: the transcribing badge on the stage (replaces the product's notice above the call). */
+.ve-drawn__badge { position: absolute; top: 18px; left: 18px; z-index: 4; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+  background: rgb(15 23 42 / 0.72); color: #fff; font-size: 12px; font-weight: 600; pointer-events: auto; }
+.ve-drawn__badge-dot { width: 8px; height: 8px; border-radius: 999px; background: #ef4444; box-shadow: 0 0 0 3px rgb(239 68 68 / 0.3); }

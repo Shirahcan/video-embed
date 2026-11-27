@@ -189,6 +189,9 @@ export interface VideoLabels {
   drawnPin: (name: string) => string;
   drawnUnpin: (name: string) => string;
   drawnPinSelf: string;
+  /** F6: the badge on the stage while the call is transcribed. */
+  drawnTranscribing: string;
+  drawnTranscribingDetail: string;
   drawnUnpinSelf: string;
   drawnFullscreen: string;
   drawnExitFullscreen: string;
@@ -636,6 +639,8 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnPin: (name) => `Pin ${name}`,
   drawnUnpin: (name) => `Unpin ${name}`,
   drawnPinSelf: 'Pin yourself',
+  drawnTranscribing: 'Transcribing',
+  drawnTranscribingDetail: 'This call is transcribed, so there is an accurate record of what was discussed. Everyone in the call sees this.',
   drawnUnpinSelf: 'Unpin yourself',
   drawnFullscreen: 'Full screen',
   drawnExitFullscreen: 'Exit full screen',

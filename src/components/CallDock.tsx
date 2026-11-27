@@ -42,6 +42,8 @@ export interface DockedCall {
   /** The viewer may end the call for everyone (pair with `handlers.onEndForEveryone`). */
   host?: boolean;
   scheduledEnd?: string | null;
+  /** CallFrame `transcribing`: the call was transcribed when it was joined (F6). */
+  transcribing?: boolean;
   /** When the call started (its first join), for the running call clock. */
   startedAt?: string | null;
   /** The viewer's action at the booked end (pair with `handlers.onEndCue`). */
@@ -127,6 +129,7 @@ function sameCall(a: DockedCall, b: DockedCall): boolean {
     (a.knockName ?? null) === (b.knockName ?? null) &&
     Boolean(a.host) === Boolean(b.host) &&
     (a.scheduledEnd ?? null) === (b.scheduledEnd ?? null) &&
+    Boolean(a.transcribing) === Boolean(b.transcribing) &&
     (a.startedAt ?? null) === (b.startedAt ?? null) &&
     (a.endCueLabel ?? null) === (b.endCueLabel ?? null) &&
     Boolean(a.backup) === Boolean(b.backup) &&
@@ -378,6 +381,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             onParticipantsChange={onParticipantsChange}
             micRef={micRef}
             scheduledEnd={call.scheduledEnd ?? null}
+            transcribing={Boolean(call.transcribing)}
             startedAt={call.startedAt ?? null}
             endCueAction={call.endCueLabel ? { label: call.endCueLabel, onSelect: onEndCue } : undefined}
             backup={call.backup ? { switchTo: switchToBackup, url: call.backup.url ?? null } : undefined}

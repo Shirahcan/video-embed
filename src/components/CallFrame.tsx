@@ -63,6 +63,12 @@ export interface CallFrameProps {
    * the standard screen mid-call. A product moves its own side tools into `panels` only while true.
    */
   onDrawnShowing?: (showing: boolean) => void;
+  /**
+   * F6: the call is transcribed. The drawn screen shows a Transcribing badge on the stage (the product
+   * then drops its own notice while `onDrawnShowing` says the stage is up); Daily's transcription
+   * events keep it current. The standard screen ignores it (the product's notice stays).
+   */
+  transcribing?: boolean;
   /** Every failure and its outcome, for the product's own record. */
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
@@ -189,7 +195,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, knockName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onRemovePerson, panels, onDrawnShowing, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, knockName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onRemovePerson, panels, onDrawnShowing, transcribing = false, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
   // Call continuity: one id per browser, and what to do about the person's other device.
   const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
   // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
@@ -637,6 +643,7 @@ export function CallFrame({ url, userName = null, knockName = null, fetchFreshUr
               waiting={frame.waiting}
               onRemovePerson={onRemovePerson}
               panels={panels}
+              transcribing={transcribing}
               onAnswer={(id, letIn) => void frame.call?.updateWaitingParticipant(id, { grantRequestedAccess: letIn }).catch(() => {})}
               onUseStandard={() => {
                 preferStandardScreen();
