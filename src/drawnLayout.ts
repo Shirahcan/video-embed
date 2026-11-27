@@ -1,4 +1,5 @@
 import type { DailyParticipant } from '@daily-co/daily-js';
+import { handOf } from './drawnHands';
 
 /**
  * What the drawn call screen draws, and how it lays it out. Pure functions, so the layout rules are
@@ -21,6 +22,8 @@ export interface DrawnPerson {
   owner?: boolean;
   /** The product's id for this person (the token's user_id); null for someone let in from the lobby. */
   userId?: string | null;
+  /** When they raised a hand (ms), from their own Daily userData; null when it is down (F2). */
+  handAt?: number | null;
 }
 
 type RawTrack = { state?: string; persistentTrack?: MediaStreamTrack };
@@ -47,6 +50,7 @@ export function drawnPeople(raw: Record<string, DailyParticipant> | null | undef
       videoOn: tracks?.video?.state !== 'off' && tracks?.video?.state !== 'blocked',
       owner: Boolean((p as unknown as { owner?: boolean }).owner),
       userId: (p as unknown as { user_id?: string }).user_id || null,
+      handAt: handOf((p as unknown as { userData?: unknown }).userData),
     };
   });
   return people.sort((a, b) => Number(b.local) - Number(a.local));

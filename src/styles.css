@@ -500,3 +500,28 @@
   .ve-drawn__bar .ve-drawn__menu-list,
   .ve-drawn__bar .ve-drawn__menu-list--end { left: 50%; right: auto; transform: translateX(-50%); width: min(300px, calc(100cqw - 24px)); }
 }
+
+/* F2: raise hand and reactions. */
+.ve-tile__hand { position: absolute; top: 10px; left: 10px; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;
+  background: #fbbf24; color: #1e1b4b; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.35); }
+.ve-tile--strip .ve-tile__hand { top: 6px; left: 6px; width: 26px; height: 26px; }
+.ve-tile__reaction { position: absolute; left: 50%; bottom: 22%; z-index: 3; font-size: 44px; line-height: 1; pointer-events: none; transform: translateX(-50%);
+  animation: ve-reaction-rise 3s ease-out forwards; filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.4)); }
+.ve-tile--strip .ve-tile__reaction, .ve-tile--self .ve-tile__reaction { font-size: 28px; }
+@keyframes ve-reaction-rise {
+  0% { opacity: 0; transform: translate(-50%, 16px) scale(0.6); }
+  12% { opacity: 1; transform: translate(-50%, 0) scale(1.1); }
+  20% { transform: translate(-50%, 0) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -48px) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ve-tile__reaction { animation: ve-reaction-fade 3s linear forwards; }
+  @keyframes ve-reaction-fade { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
+}
+.ve-drawn__menu-list.ve-react { width: auto; display: flex; gap: 4px; padding: 6px 8px; border-radius: var(--ve-radius-pill); }
+.ve-react__btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; font-size: 24px; cursor: pointer; outline: none;
+  transition: transform 120ms ease, background 120ms ease; }
+.ve-react__btn:hover { background: rgba(255, 255, 255, 0.12); transform: scale(1.12); }
+.ve-react__btn:focus-visible { box-shadow: 0 0 0 2px var(--ve-accent); }
+.ve-people__icon--hand { color: #f59e0b; }

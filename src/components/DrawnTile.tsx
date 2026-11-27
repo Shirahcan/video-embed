@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { DrawnPerson } from '../drawnLayout';
 import { cx } from '../theme';
-import { MicOffIcon } from './icons';
+import { MicOffIcon, HandIcon } from './icons';
 
 /**
  * Keeps a media element playing one track; the element itself never changes, so it can move windows.
@@ -32,8 +32,12 @@ function initialsOf(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 }
 
-export function Tile({ person, label, mutedLabel, speaking = false, variant = 'stage', mirror = true }: {
+export function Tile({ person, label, mutedLabel, speaking = false, variant = 'stage', mirror = true, handLabel, reaction = null }: {
   person: DrawnPerson;
+  /** Said for a raised hand (its badge is drawn whenever `person.handAt` is set). */
+  handLabel?: string;
+  /** A reaction showing over the tile right now (F2); its `key` replays the burst. */
+  reaction?: { emoji: string; key: number } | null;
   /** Show the viewer's own video as in a mirror (their choice; others never see it flipped). */
   mirror?: boolean;
   label: string;
@@ -51,6 +55,12 @@ export function Tile({ person, label, mutedLabel, speaking = false, variant = 's
     >
       <video ref={ref} className="ve-tile__video" autoPlay playsInline muted hidden={!showVideo} />
       {!showVideo ? <span className="ve-tile__initials" aria-hidden="true">{initialsOf(person.name || label)}</span> : null}
+      {person.handAt ? (
+        <span className="ve-tile__hand" role="img" aria-label={handLabel}>
+          <HandIcon width={18} height={18} />
+        </span>
+      ) : null}
+      {reaction ? <span key={reaction.key} className="ve-tile__reaction" aria-hidden="true">{reaction.emoji}</span> : null}
       <span className="ve-tile__name">
         {!person.audioOn ? (
           <span className="ve-tile__muted" role="img" aria-label={mutedLabel}>

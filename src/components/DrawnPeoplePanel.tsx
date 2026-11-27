@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { DrawnPerson } from '../drawnLayout';
 import type { WaitingPerson } from '../hooks/useDailyFrame';
 import { cx, useVideoUi } from '../theme';
-import { CameraOffIcon, CloseIcon, KebabIcon, MicIcon, MicOffIcon } from './icons';
+import { CameraOffIcon, CloseIcon, HandIcon, KebabIcon, MicIcon, MicOffIcon } from './icons';
 
 export interface DrawnPeoplePanelProps {
   people: DrawnPerson[];
@@ -10,7 +10,7 @@ export interface DrawnPeoplePanelProps {
   waiting: WaitingPerson[];
   onAnswer?: (id: string, letIn: boolean) => void;
   /** Present when this person may mute and remove others (the host). */
-  host?: { mute: (id: string) => void; remove: (id: string) => void } | null;
+  host?: { mute: (id: string) => void; remove: (id: string) => void; lowerHand: (id: string) => void } | null;
   onClose: () => void;
 }
 
@@ -22,7 +22,7 @@ function initials(name: string): string {
 }
 
 /** One person's row actions for a host: Mute, then Remove from the call (asks first). */
-function RowMenu({ person, onMute, onRemove }: { person: DrawnPerson; onMute: () => void; onRemove: () => void }) {
+function RowMenu({ person, onMute, onRemove, onLowerHand }: { person: DrawnPerson; onMute: () => void; onRemove: () => void; onLowerHand: () => void }) {
   const { labels } = useVideoUi();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
@@ -59,6 +59,19 @@ function RowMenu({ person, onMute, onRemove }: { person: DrawnPerson; onMute: ()
       </button>
       {open ? (
         <span className="ve-people__menu-list" role="menu" aria-label={labels.drawnPersonActions(name)}>
+          {person.handAt ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="ve-people__menu-item"
+              onClick={() => {
+                setOpen(false);
+                onLowerHand();
+              }}
+            >
+              {labels.drawnPeopleLowerHand}
+            </button>
+          ) : null}
           <button
             type="button"
             role="menuitem"
@@ -103,7 +116,17 @@ export function DrawnPeoplePanel({ people, waiting, onAnswer, host = null, onClo
     closeRef.current?.focus();
   }, []);
 
-  const sorted = [...people].sort((a, b) => Number(b.local) - Number(a.local) || a.name.localeCompare(b.name));
+  // Raised hands first, in the order they went up (F2); then the viewer, then by name.
+  const sorted = [...people].sort((a, b) => {
+    const ah = a.handAt ?? null;
+    const bh = b.handAt ?? null;
+    if (ah !== null || bh !== null) {
+      if (ah === null) return 1;
+      if (bh === null) return -1;
+      if (ah !== bh) return ah - bh;
+    }
+    return Number(b.local) - Number(a.local) || a.name.localeCompare(b.name);
+  });
 
   return (
     <section className="ve-chat ve-people" aria-label={labels.drawnPeopleTitle}>
@@ -147,13 +170,14 @@ export function DrawnPeoplePanel({ people, waiting, onAnswer, host = null, onClo
                   {p.owner ? <span className="ve-people__tag">{labels.drawnPeopleHost}</span> : null}
                 </span>
                 <span className="ve-people__state">
+                  {p.handAt ? <span className="ve-people__icon ve-people__icon--hand" title={labels.drawnHandRaised}><HandIcon width={16} height={16} /><span className="ve-sr">{labels.drawnHandRaised}</span></span> : null}
                   {!p.videoOn ? <span className="ve-people__icon ve-people__icon--off" title={labels.drawnCameraOff}><CameraOffIcon width={16} height={16} /></span> : null}
                   <span className={cx('ve-people__icon', !p.audioOn && 've-people__icon--off')} title={p.audioOn ? labels.drawnPeopleMicOn : labels.drawnMuted}>
                     {p.audioOn ? <MicIcon width={16} height={16} /> : <MicOffIcon width={16} height={16} />}
                   </span>
                   <span className="ve-sr">{p.audioOn ? labels.drawnPeopleMicOn : labels.drawnMuted}</span>
                 </span>
-                {host && !p.local ? <RowMenu person={p} onMute={() => host.mute(p.id)} onRemove={() => setRemoving(p)} /> : null}
+                {host && !p.local ? <RowMenu person={p} onMute={() => host.mute(p.id)} onRemove={() => setRemoving(p)} onLowerHand={() => host.lowerHand(p.id)} /> : null}
               </li>
             );
           })}

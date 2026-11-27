@@ -122,6 +122,29 @@ export function PeopleIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** A raised open hand. */
+export function HandIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M8 12.5V5.5a1.5 1.5 0 0 1 3 0v6" />
+      <path d="M11 11V4a1.5 1.5 0 0 1 3 0v7" />
+      <path d="M14 11V5.5a1.5 1.5 0 0 1 3 0V13" />
+      <path d="M17 9.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1.5a6 6 0 0 1-4.6-2.2L3.6 15a1.6 1.6 0 0 1 2.3-2.2L8 14.5" />
+    </Icon>
+  );
+}
+
+/** A smiling face: send a reaction. */
+export function ReactIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.5 14.5a4.5 4.5 0 0 0 7 0" />
+      <path d="M9 9.5h.01M15 9.5h.01" />
+    </Icon>
+  );
+}
+
 /** The vertical three dots of a row's actions. */
 export function KebabIcon(props: SVGProps<SVGSVGElement>) {
   return (

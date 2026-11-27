@@ -1,7 +1,9 @@
 import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode, useCallback } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
-import { BlurIcon, MirrorIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, MicIcon, MicOffIcon, NoiseIcon, PeopleIcon, PresentIcon } from './icons';
+import { BlurIcon, MirrorIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, HandIcon, MicIcon, MicOffIcon, NoiseIcon, PeopleIcon, PresentIcon } from './icons';
+import { REACTIONS, useHandsAndReactions, useRaisedHandNotice } from '../drawnHands';
+import { DrawnReactMenu } from './DrawnReactMenu';
 import { PRESENT_OPTIONS, useDrawnEffects } from '../drawnEffects';
 import { prefersMirroredSelf, setMirroredSelf } from '../callScreen';
 import { createPortal } from 'react-dom';
@@ -13,6 +15,7 @@ import { DrawnMoreMenu } from './DrawnMoreMenu';
 import { DrawnLeaveMenu } from './DrawnLeaveMenu';
 import { DrawnChatPanel } from './DrawnChatPanel';
 import { DrawnPeoplePanel } from './DrawnPeoplePanel';
+import { DrawnNotices } from './DrawnNotices';
 import { useHostControls } from '../hostControls';
 import { useDrawnChat } from '../drawnChat';
 import { useDrawnNetwork } from '../drawnNetwork';
@@ -181,13 +184,18 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
   const self = people.find((p) => p.local) ?? null;
   const others = people.filter((p) => !p.local);
   const chat = useDrawnChat(call, self?.name ?? '', chatOpen);
+  const hands = useHandsAndReactions(call, self?.id ?? null, self?.handAt ?? null);
+  const handNotice = useRaisedHandNotice(people);
+  const handsUp = others.filter((p) => p.handAt).length;
   // B1: the bar never overflows. Pop out folds into More first, then Present, then Chat; mic,
   // camera, More and Leave always stay.
   const barRef = useRef<HTMLDivElement>(null);
   const foldable: FoldableControl[] = [
     ...(float.supported ? [{ key: 'float', priority: 1 }] : []),
     ...(effects.support.present ? [{ key: 'present', priority: 2 }] : []),
+    { key: 'react', priority: 2.5 },
     { key: 'chat', priority: 3 },
+    { key: 'hand', priority: 3.5 },
     { key: 'people', priority: 4 },
   ];
   const folded = useBarFold(rootRef, barRef, foldable);
@@ -300,7 +308,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
           <ShareTile track={presenter.screen} label={labels.drawnPresenting(presenter.name || '?')} />
           <div className="ve-drawn__strip">
             {people.map((p) => (
-              <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} speaking={ringFor(p)} variant="strip" mirror={mirror} />
+              <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} handLabel={labels.drawnHandRaised} reaction={hands.reactions[p.id] ?? null} speaking={ringFor(p)} variant="strip" mirror={mirror} />
             ))}
           </div>
         </div>
@@ -314,11 +322,11 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
         >
           {layout === 'waiting' ? <p className="ve-drawn__waiting">{labels.drawnWaiting}</p> : null}
           {tiles.map((p) => (
-            <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} speaking={ringFor(p)} mirror={mirror} />
+            <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} handLabel={labels.drawnHandRaised} reaction={hands.reactions[p.id] ?? null} speaking={ringFor(p)} mirror={mirror} />
           ))}
         </div>
       )}
-      {self && layout === 'focus' ? <Tile person={self} label={labels.drawnYou} mutedLabel={labels.drawnMuted} speaking={ringFor(self)} variant="self" mirror={mirror} /> : null}
+      {self && layout === 'focus' ? <Tile person={self} label={labels.drawnYou} mutedLabel={labels.drawnMuted} handLabel={labels.drawnHandRaised} reaction={hands.reactions[self.id] ?? null} speaking={ringFor(self)} variant="self" mirror={mirror} /> : null}
 
       <div className="ve-drawn__sound" hidden ref={soundRef}>
         {others.map((p) => <Sound key={p.id} track={p.audio} sinkId={devices.speakerId} onBlocked={() => setSoundBlocked(true)} />)}
@@ -333,61 +341,39 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
         </div>
       ) : null}
 
-      {soundBlocked || notice || connection !== 'ok' || presenting || effects.failed || float.failed || mutedByHost ? (
-        <div className="ve-drawn__notices">
-          {float.failed ? (
-            <p className="ve-drawn__notice" role="status">
-              <span>{labels.drawnFloatFailed}</span>
-              <button type="button" className="ve-drawn__notice-btn" onClick={float.dismissFailed}>{labels.drawnDismiss}</button>
-            </p>
-          ) : null}
-          {mutedByHost ? (
-            <p className="ve-drawn__notice" role="status">
-              <MicOffIcon width={16} height={16} />
-              <span>{labels.drawnMutedByHost}</span>
-              <button type="button" className="ve-drawn__notice-btn" onClick={hostControls.dismissMutedByHost}>{labels.drawnDismiss}</button>
-            </p>
-          ) : null}
-          {presenting ? (
-            <p className="ve-drawn__notice ve-drawn__notice--present" role="status">
-              <PresentIcon width={16} height={16} />
-              <span>{labels.drawnPresentingYou}</span>
-              <button type="button" className="ve-drawn__notice-btn" onClick={togglePresent}>{labels.drawnPresentStop}</button>
-            </p>
-          ) : null}
-          {effects.failed ? (
-            <p className="ve-drawn__notice" role="status">
-              <span>{labels.drawnEffectFailed(effects.failed)}</span>
-              <button type="button" className="ve-drawn__notice-btn" onClick={effects.dismissFailed}>{labels.drawnDismiss}</button>
-            </p>
-          ) : null}
-          {connection === 'reconnecting' ? (
-            <p className="ve-drawn__notice ve-drawn__notice--warn" role="status">
-              <span className="ve-drawn__spinner" aria-hidden="true" />
-              <span>{labels.drawnReconnecting}</span>
-            </p>
-          ) : null}
-          {connection === 'weak' && !weakDismissed && !camOff ? (
-            <p className="ve-drawn__notice" role="status">
-              <span>{labels.drawnWeak}</span>
-              <button type="button" className="ve-drawn__notice-btn" onClick={() => { call.setLocalVideo(false); setWeakDismissed(true); }}>{labels.drawnWeakVideoOff}</button>
-              <button type="button" className="ve-drawn__notice-btn ve-drawn__notice-btn--quiet" onClick={() => setWeakDismissed(true)}>{labels.drawnDismiss}</button>
-            </p>
-          ) : null}
-          {soundBlocked ? (
-            <p className="ve-drawn__notice ve-drawn__notice--warn" role="alert">
-              <span>{labels.drawnSoundBlocked}</span>
-              <button type="button" className="ve-drawn__notice-btn" onClick={hearCall}>{labels.drawnHearCall}</button>
-            </p>
-          ) : null}
-          {notice ? (
-            <p className="ve-drawn__notice" role="status">
-              <span>{notice.failed ? labels.drawnDeviceFailed(notice.label ?? '', notice.kept ?? null) : labels.drawnDeviceSwitched(notice.kind, notice.label)}</span>
-              <button type="button" className="ve-drawn__notice-btn" onClick={dismissNotice}>{labels.drawnDismiss}</button>
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      <DrawnNotices
+        floatFailed={Boolean(float.failed)}
+        onDismissFloat={float.dismissFailed}
+        mutedByHost={mutedByHost}
+        onDismissMuted={hostControls.dismissMutedByHost}
+        presenting={presenting}
+        onStopPresenting={togglePresent}
+        effectFailed={effects.failed}
+        onDismissEffect={effects.dismissFailed}
+        connection={connection}
+        showWeak={connection === 'weak' && !weakDismissed && !camOff}
+        onVideoOff={() => { call.setLocalVideo(false); setWeakDismissed(true); }}
+        onDismissWeak={() => setWeakDismissed(true)}
+        soundBlocked={soundBlocked}
+        onHearCall={hearCall}
+        notice={notice}
+        onDismissNotice={dismissNotice}
+      >
+        {hands.handUp ? (
+          <p className="ve-drawn__notice" role="status">
+            <HandIcon width={16} height={16} />
+            <span>{labels.drawnYourHandUp}</span>
+            <button type="button" className="ve-drawn__notice-btn" onClick={hands.toggleHand}>{labels.drawnLowerHand}</button>
+          </p>
+        ) : null}
+        {handNotice.notice ? (
+          <p className="ve-drawn__notice" role="status">
+            <HandIcon width={16} height={16} />
+            <span>{labels.drawnHandRaisedBy(handNotice.notice.name || labels.knockSomeone)}</span>
+            <button type="button" className="ve-drawn__notice-btn" onClick={() => setPanel('people')}>{labels.drawnPeopleShort}</button>
+          </p>
+        ) : null}
+      </DrawnNotices>
 
       {chatOpen ? <DrawnChatPanel messages={chat.messages} onSend={chat.send} onClose={() => setPanel(null)} /> : null}
       {peopleOpen ? (
@@ -399,6 +385,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             hostControls.isHost
               ? {
                   mute: hostControls.mute,
+                  lowerHand: hands.lowerHandOf,
                   remove: (id) => {
                     const p = people.find((x) => x.id === id);
                     hostControls.remove(id);
@@ -467,6 +454,11 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             />
           </span>
         ) : null}
+        {isFolded('react') ? null : (
+          <span className="ve-ctl-slot" data-fold-key="react">
+            <DrawnReactMenu onReact={hands.react} />
+          </span>
+        )}
         {isFolded('chat') ? null : <span className="ve-ctl-badged" data-fold-key="chat">
           <Control
             label={labels.drawnChatShort}
@@ -477,6 +469,17 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
           />
           {chat.unread > 0 ? <span className="ve-ctl-badge" aria-hidden="true">{chat.unread > 9 ? '9+' : chat.unread}</span> : null}
         </span>}
+        {isFolded('hand') ? null : (
+          <span className="ve-ctl-slot" data-fold-key="hand">
+            <Control
+              label={labels.drawnHandShort}
+              ariaLabel={hands.handUp ? labels.drawnLowerHand : labels.drawnRaiseHand}
+              pressed={hands.handUp}
+              onClick={hands.toggleHand}
+              icon={<HandIcon />}
+            />
+          </span>
+        )}
         {isFolded('people') ? null : <span className="ve-ctl-badged" data-fold-key="people">
           <Control
             label={labels.drawnPeopleShort}
@@ -485,15 +488,17 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             onClick={() => togglePanel('people')}
             icon={<PeopleIcon />}
           />
-          {knocking > 0 ? <span className="ve-ctl-badge" aria-hidden="true">{knocking > 9 ? '9+' : knocking}</span> : null}
+          {knocking + handsUp > 0 ? <span className="ve-ctl-badge" aria-hidden="true">{knocking + handsUp > 9 ? '9+' : knocking + handsUp}</span> : null}
         </span>}
         <DrawnMoreMenu
           onUseStandard={onUseStandard}
           actions={[
             ...(isFolded('float') ? [{ key: 'float', title: float.host ? labels.drawnFloatBack : labels.drawnFloatLong, icon: <PopOutIcon />, pressed: Boolean(float.host), onSelect: () => (float.host ? float.close() : void float.open()) }] : []),
             ...(isFolded('present') ? [{ key: 'present', title: presenting ? labels.drawnPresentStop : labels.drawnPresent, icon: <PresentIcon />, pressed: presenting, onSelect: togglePresent }] : []),
+            ...(isFolded('react') ? REACTIONS.map((emoji) => ({ key: `react-${emoji}`, title: labels.drawnReactionName(emoji), icon: <span aria-hidden="true">{emoji}</span>, pressed: false, onSelect: () => hands.react(emoji) })) : []),
+            ...(isFolded('hand') ? [{ key: 'hand', title: hands.handUp ? labels.drawnLowerHand : labels.drawnRaiseHand, icon: <HandIcon />, pressed: hands.handUp, onSelect: hands.toggleHand }] : []),
             ...(isFolded('chat') ? [{ key: 'chat', title: chat.unread > 0 ? labels.drawnChatUnread(chat.unread) : labels.drawnChat, icon: <ChatIcon />, pressed: chatOpen, badge: chat.unread, onSelect: () => togglePanel('chat') }] : []),
-            ...(isFolded('people') ? [{ key: 'people', title: labels.drawnPeople, icon: <PeopleIcon />, pressed: peopleOpen, badge: knocking, onSelect: () => togglePanel('people') }] : []),
+            ...(isFolded('people') ? [{ key: 'people', title: labels.drawnPeople, icon: <PeopleIcon />, pressed: peopleOpen, badge: knocking + handsUp, onSelect: () => togglePanel('people') }] : []),
           ]}
           switches={[
             ...(effects.support.noise ? [{ key: 'noise', on: effects.noise, title: labels.drawnNoise, detail: labels.drawnNoiseDetail, icon: <NoiseIcon />, onToggle: effects.toggleNoise }] : []),

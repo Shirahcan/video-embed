@@ -460,4 +460,84 @@ describe('which call screen a device gets', () => {
       expect(document.querySelectorAll('.ve-chat')).toHaveLength(1);
     });
   });
+
+  describe('raise hand and reactions (F2)', () => {
+    const me = { session_id: 'me', user_name: 'Fatima', local: true, owner: true, tracks: { audio: { state: 'playable' }, video: { state: 'off' } } };
+    const guest = { session_id: 'g1', user_name: 'Maria Garcia', user_id: 'u-maria', local: false, tracks: { audio: { state: 'playable' }, video: { state: 'off' } } };
+
+    function start(people: Record<string, unknown>) {
+      const userData: unknown[] = [];
+      const sent: Array<[unknown, unknown]> = [];
+      nextObject = {
+        people,
+        setUserData: (d: unknown) => { userData.push(d); return Promise.resolve(); },
+        sendAppMessage: (data: unknown, to: unknown) => { sent.push([data, to]); },
+      } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+      return { userData, sent };
+    }
+
+    it('raises and lowers my own hand through my Daily userData, and says it is up', async () => {
+      const { userData } = start({ local: me, g1: guest });
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Raise your hand' }));
+      expect(typeof (userData[0] as { ve_hand: unknown }).ve_hand).toBe('number');
+
+      act(() => {
+        latest().people = { local: { ...me, userData: { ve_hand: 1000 } }, g1: guest };
+        latest().emit('participant-updated');
+      });
+      expect(await screen.findByText('Your hand is raised. Everyone in the call can see it.')).toBeTruthy();
+      const lower = screen.getAllByRole('button', { name: 'Lower your hand' });
+      // The notice's button and the bar's control (shown pressed) both lower it.
+      expect(lower.some((b) => b.getAttribute('aria-pressed') === 'true')).toBe(true);
+      fireEvent.click(lower[0]!);
+      expect(userData[userData.length - 1]).toEqual({ ve_hand: null });
+    });
+
+    it("shows someone else's hand on their tile, announces it, lists them first, and lets a host lower it", async () => {
+      const { sent } = start({ local: me, g1: guest });
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      act(() => {
+        latest().people = { local: me, g1: { ...guest, userData: { ve_hand: 2000 } } };
+        latest().emit('participant-updated');
+      });
+      expect(await screen.findByText('Maria Garcia raised a hand')).toBeTruthy();
+      expect(screen.getAllByRole('img', { name: 'Hand raised' }).length).toBeGreaterThan(0);
+
+      fireEvent.click(screen.getByRole('button', { name: 'People in the call' }));
+      const panel = await screen.findByRole('region', { name: 'People' });
+      const rows = [...panel.querySelectorAll('.ve-people__row')].map((r) => r.textContent ?? '');
+      expect(rows[0]).toContain('Maria Garcia');
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for Maria Garcia' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Lower hand' }));
+      expect(sent).toContainEqual([{ event: 've-hand-lower' }, 'g1']);
+    });
+
+    it('lowers my hand when a host asks my screen to', async () => {
+      const { userData } = start({ local: { ...me, owner: false, userData: { ve_hand: 1000 } }, g1: guest });
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      act(() => latest().emit('app-message', { data: { event: 've-hand-lower' }, fromId: 'g1' }));
+      expect(userData).toEqual([{ ve_hand: null }]);
+    });
+
+    it('sends a reaction to everyone, shows it on my tile, shows theirs on theirs, and never floods', async () => {
+      const { sent } = start({ local: me, g1: guest });
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Send a reaction' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Applause' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Applause' }));
+      expect(sent).toEqual([[{ event: 've-reaction', emoji: '👏' }, '*']]);
+      expect(document.querySelector('[data-person="me"] .ve-tile__reaction')?.textContent).toBe('👏');
+
+      act(() => latest().emit('app-message', { data: { event: 've-reaction', emoji: '👍' }, fromId: 'g1' }));
+      expect(document.querySelector('[data-person="g1"] .ve-tile__reaction')?.textContent).toBe('👍');
+      act(() => latest().emit('app-message', { data: { event: 've-reaction', emoji: '<img>' }, fromId: 'g1' }));
+      expect(document.querySelector('[data-person="g1"] .ve-tile__reaction')?.textContent).toBe('👍');
+    });
+  });
 });

@@ -176,6 +176,18 @@ export interface VideoLabels {
   drawnRemoveDetail: string;
   drawnRemoveCancel: string;
   drawnMutedByHost: string;
+  /** Raise hand and reactions (F2). */
+  drawnHandShort: string;
+  drawnRaiseHand: string;
+  drawnLowerHand: string;
+  drawnHandRaised: string;
+  drawnHandRaisedBy: (name: string) => string;
+  drawnYourHandUp: string;
+  drawnPeopleLowerHand: string;
+  drawnReactShort: string;
+  drawnReact: string;
+  drawnReactionName: (emoji: string) => string;
+  drawnReactedBy: (name: string, emoji: string) => string;
   drawnChat: string;
   drawnChatShort: string;
   drawnChatUnread: (count: number) => string;
@@ -595,6 +607,17 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnRemoveDetail: 'They leave the call at once and are told they were removed.',
   drawnRemoveCancel: 'Cancel',
   drawnMutedByHost: 'The host muted you. Unmute when you are ready to speak.',
+  drawnHandShort: 'Hand',
+  drawnRaiseHand: 'Raise your hand',
+  drawnLowerHand: 'Lower your hand',
+  drawnHandRaised: 'Hand raised',
+  drawnHandRaisedBy: (name) => `${name} raised a hand`,
+  drawnYourHandUp: 'Your hand is raised. Everyone in the call can see it.',
+  drawnPeopleLowerHand: 'Lower hand',
+  drawnReactShort: 'React',
+  drawnReact: 'Send a reaction',
+  drawnReactionName: (emoji) => ({ '👍': 'Thumbs up', '👏': 'Applause', '❤️': 'Heart', '😂': 'Laughing', '👋': 'Wave' } as Record<string, string>)[emoji] ?? emoji,
+  drawnReactedBy: (name, emoji) => `${name}: ${emoji}`,
   drawnChat: 'Chat with everyone',
   drawnChatShort: 'Chat',
   drawnChatUnread: (count) => `Chat with everyone, ${count} new ${count === 1 ? 'message' : 'messages'}`,
