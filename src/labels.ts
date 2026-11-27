@@ -178,6 +178,20 @@ export interface VideoLabels {
   drawnMutedByHost: string;
   /** Raise hand and reactions (F2). */
   drawnHandShort: string;
+  /** F5: the layout choice in More, the pin on a tile, full screen. */
+  drawnLayout: string;
+  drawnLayoutAuto: string;
+  drawnLayoutAutoDetail: string;
+  drawnLayoutTiled: string;
+  drawnLayoutTiledDetail: string;
+  drawnLayoutSpotlight: string;
+  drawnLayoutSpotlightDetail: string;
+  drawnPin: (name: string) => string;
+  drawnUnpin: (name: string) => string;
+  drawnPinSelf: string;
+  drawnUnpinSelf: string;
+  drawnFullscreen: string;
+  drawnExitFullscreen: string;
   /** Closing a product's own side panel (F3). */
   drawnPanelClose: (title: string) => string;
   /** Once per device after someone switched to another app mid-call (Chrome only auto-floats on a tab switch). */
@@ -612,6 +626,19 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnRemoveCancel: 'Cancel',
   drawnMutedByHost: 'The host muted you. Unmute when you are ready to speak.',
   drawnHandShort: 'Hand',
+  drawnLayout: 'Layout',
+  drawnLayoutAuto: 'Auto',
+  drawnLayoutAutoDetail: 'Large with one other person, a grid with more.',
+  drawnLayoutTiled: 'Tiled',
+  drawnLayoutTiledDetail: 'Everyone the same size, you included.',
+  drawnLayoutSpotlight: 'Spotlight',
+  drawnLayoutSpotlightDetail: 'Whoever is speaking large, everyone else beside them.',
+  drawnPin: (name) => `Pin ${name}`,
+  drawnUnpin: (name) => `Unpin ${name}`,
+  drawnPinSelf: 'Pin yourself',
+  drawnUnpinSelf: 'Unpin yourself',
+  drawnFullscreen: 'Full screen',
+  drawnExitFullscreen: 'Exit full screen',
   drawnPanelClose: (title) => `Close ${title}`,
   drawnAppSwitchTip: 'Switching to another app? Press Pop out first and the call stays on top of everything.',
   drawnRaiseHand: 'Raise your hand',

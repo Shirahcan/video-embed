@@ -527,3 +527,18 @@
 .ve-react__btn:hover { background: rgba(255, 255, 255, 0.12); transform: scale(1.12); }
 .ve-react__btn:focus-visible { box-shadow: 0 0 0 2px var(--ve-accent); }
 .ve-people__icon--hand { color: #f59e0b; }
+
+/* F5: layout choice, pin, full screen. */
+.ve-tile__pin { position: absolute; top: 10px; right: 10px; z-index: 3; width: 32px; height: 32px; border: 0; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  background: rgb(15 23 42 / 0.62); color: #fff; cursor: pointer; outline: none; opacity: 0; transition: opacity 120ms ease; }
+.ve-tile:hover .ve-tile__pin, .ve-tile__pin:focus-visible, .ve-tile--pinned .ve-tile__pin { opacity: 1; }
+.ve-tile__pin:focus-visible { box-shadow: 0 0 0 3px var(--ve-accent); }
+.ve-tile--pinned .ve-tile__pin { background: var(--ve-accent); }
+.ve-tile--strip .ve-tile__pin { top: 6px; right: 6px; width: 26px; height: 26px; }
+.ve-tile--main { width: 100%; height: 100%; }
+@media (hover: none) { .ve-tile__pin { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ve-tile__pin { transition: none; } }
+.ve-drawn__menu-group { padding: 6px 12px 2px; font-size: 12px; font-weight: 600; color: var(--ve-ink-muted); }
+.ve-drawn:fullscreen { border-radius: 0; }
+.ve-drawn__menu-list > [role='group'] { display: contents; }
+.ve-drawn__menu-group { display: block; }

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { DrawnPerson } from '../drawnLayout';
 import { cx } from '../theme';
-import { MicOffIcon, HandIcon } from './icons';
+import { MicOffIcon, HandIcon, PinIcon } from './icons';
 
 /**
  * Keeps a media element playing one track; the element itself never changes, so it can move windows.
@@ -32,7 +32,7 @@ function initialsOf(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 }
 
-export function Tile({ person, label, mutedLabel, speaking = false, variant = 'stage', mirror = true, handLabel, reaction = null }: {
+export function Tile({ person, label, mutedLabel, speaking = false, variant = 'stage', mirror = true, handLabel, reaction = null, pin = null }: {
   person: DrawnPerson;
   /** Said for a raised hand (its badge is drawn whenever `person.handAt` is set). */
   handLabel?: string;
@@ -43,14 +43,16 @@ export function Tile({ person, label, mutedLabel, speaking = false, variant = 's
   label: string;
   mutedLabel: string;
   speaking?: boolean;
-  /** `stage`: in the grid; `self`: the viewer's corner tile; `strip`: beside a shared screen. */
-  variant?: 'stage' | 'self' | 'strip';
+  /** `stage`: in the grid; `self`: the viewer's corner tile; `strip`: beside a shared screen; `main`: the spotlight. */
+  variant?: 'stage' | 'self' | 'strip' | 'main';
+  /** F5: pin this tile large (or unpin it); a pinned tile shows its pin. */
+  pin?: { pinned: boolean; label: string; onToggle: () => void } | null;
 }) {
   const showVideo = person.videoOn && Boolean(person.video);
   const ref = useMediaTrack(showVideo ? person.video : null);
   return (
     <div
-      className={cx('ve-tile', variant === 'self' && 've-tile--self', variant === 'strip' && 've-tile--strip', speaking && 've-tile--speaking', person.local && mirror && 've-tile--mirror')}
+      className={cx('ve-tile', variant === 'self' && 've-tile--self', variant === 'strip' && 've-tile--strip', variant === 'main' && 've-tile--main', speaking && 've-tile--speaking', person.local && mirror && 've-tile--mirror', pin?.pinned && 've-tile--pinned')}
       data-person={person.id}
     >
       <video ref={ref} className="ve-tile__video" autoPlay playsInline muted hidden={!showVideo} />
@@ -59,6 +61,11 @@ export function Tile({ person, label, mutedLabel, speaking = false, variant = 's
         <span className="ve-tile__hand" role="img" aria-label={handLabel}>
           <HandIcon width={18} height={18} />
         </span>
+      ) : null}
+      {pin ? (
+        <button type="button" className="ve-tile__pin" aria-label={pin.label} title={pin.label} aria-pressed={pin.pinned} onClick={pin.onToggle}>
+          <PinIcon width={16} height={16} />
+        </button>
       ) : null}
       {reaction ? <span key={reaction.key} className="ve-tile__reaction" aria-hidden="true">{reaction.emoji}</span> : null}
       <span className="ve-tile__name">

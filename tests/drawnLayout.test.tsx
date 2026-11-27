@@ -1,7 +1,8 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { DailyCall } from '@daily-co/daily-js';
-import { chooseDrawnLayout, drawnPeople, fitTiles, receiveLayers, type DrawnPerson } from '../src/drawnLayout';
+import { arrangeStage, arrangementLayers, chooseDrawnLayout, drawnPeople, fitTiles, receiveLayers, type DrawnPerson } from '../src/drawnLayout';
+import { LAYOUT_MODE_KEY } from '../src/drawnView';
 import { DrawnStage } from '../src/components/DrawnStage';
 
 const track = (id: string) => ({ id, kind: 'video' }) as unknown as MediaStreamTrack;
@@ -87,6 +88,47 @@ class StageCall {
   setLocalVideo() {}
 }
 
+describe('layout choice and pin (F5)', () => {
+  const a = person('a');
+  const b = person('b');
+  const presenter = person('p', { screen: track('s') });
+
+  it('Auto is the layout people already know', () => {
+    expect(arrangeStage([me, a]).kind).toBe('focus');
+    expect(arrangeStage([me, a]).selfCorner).toBe(true);
+    expect(arrangeStage([me, a, b]).kind).toBe('grid');
+    expect(arrangeStage([me]).kind).toBe('waiting');
+    expect(arrangeStage([me, a, presenter]).main).toEqual({ person: presenter, screen: true });
+  });
+
+  it('Tiled puts everyone in one grid, the viewer included, even with one other', () => {
+    const t = arrangeStage([me, a], { mode: 'tiled' });
+    expect(t.kind).toBe('grid');
+    expect(t.tiles.map((p) => p.id)).toEqual(['a', 'me']);
+  });
+
+  it('Spotlight puts the speaker large and everyone else beside them', () => {
+    const s = arrangeStage([me, a, b], { mode: 'spotlight', speakerId: 'b' });
+    expect(s.kind).toBe('spotlight');
+    expect(s.main?.person.id).toBe('b');
+    expect(s.strip.map((p) => p.id)).toEqual(['me', 'a']);
+    // Nobody speaking yet: the first other person.
+    expect(arrangeStage([me, a, b], { mode: 'spotlight' }).main?.person.id).toBe('a');
+  });
+
+  it('a pin wins over the speaker and a shared screen, and is ignored once that person left', () => {
+    const pinned = arrangeStage([me, a, presenter], { mode: 'auto', pinnedId: 'a', speakerId: 'p' });
+    expect(pinned.main).toEqual({ person: a, screen: false });
+    expect(pinned.strip.map((p) => p.id)).toEqual(['me', 'p']);
+    expect(arrangeStage([me, b], { pinnedId: 'a' }).kind).toBe('focus');
+  });
+
+  it('receives the large person high and the strip low', () => {
+    const s = arrangeStage([me, a, b], { pinnedId: 'b' });
+    expect(arrangementLayers([me, a, b], s)).toEqual({ a: 0, b: 2 });
+  });
+});
+
 describe('the drawn call stage', () => {
   beforeAll(() => {
     (globalThis as unknown as { MediaStream: unknown }).MediaStream = class {
@@ -115,5 +157,59 @@ describe('the drawn call stage', () => {
 
     act(() => call.emit('active-speaker-change', { activeSpeaker: { peerId: 'm' } }));
     expect(container.querySelector('[data-person="m"]')!.className).toContain('ve-tile--speaking');
+  });
+});
+
+describe('layout choice and pin on the stage (F5)', () => {
+  const group = () => ({
+    local: { session_id: 'me', user_name: 'Ada', local: true, tracks: {} },
+    m: { session_id: 'm', user_name: 'Maria Garcia', local: false, tracks: {} },
+    j: { session_id: 'j', user_name: 'Jon', local: false, tracks: {} },
+  });
+
+  it('pins a tile large, keeps it while the speaker changes, and unpins it', () => {
+    window.localStorage.removeItem(LAYOUT_MODE_KEY);
+    const call = new StageCall();
+    call.people = group();
+    const { container } = render(<DrawnStage call={call as unknown as DailyCall} onLeave={() => {}} onUseStandard={() => {}} />);
+    expect(container.querySelector('[data-layout="grid"]')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Pin Jon' }));
+    expect(container.querySelector('.ve-tile--main')?.getAttribute('data-person')).toBe('j');
+    act(() => call.emit('active-speaker-change', { activeSpeaker: { peerId: 'm' } }));
+    expect(container.querySelector('.ve-tile--main')?.getAttribute('data-person')).toBe('j');
+    fireEvent.click(screen.getByRole('button', { name: 'Unpin Jon' }));
+    expect(container.querySelector('.ve-tile--main')).toBeNull();
+  });
+
+  it('More > Layout switches to Spotlight and remembers it on this device', () => {
+    window.localStorage.removeItem(LAYOUT_MODE_KEY);
+    const call = new StageCall();
+    call.people = group();
+    const first = render(<DrawnStage call={call as unknown as DailyCall} onLeave={() => {}} onUseStandard={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Spotlight/ }));
+    expect(first.container.querySelector('[data-layout="spotlight"]')).toBeTruthy();
+    expect(window.localStorage.getItem(LAYOUT_MODE_KEY)).toBe('spotlight');
+    first.unmount();
+    const again = render(<DrawnStage call={call as unknown as DailyCall} onLeave={() => {}} onUseStandard={() => {}} />);
+    expect(again.container.querySelector('[data-layout="spotlight"]')).toBeTruthy();
+    window.localStorage.removeItem(LAYOUT_MODE_KEY);
+  });
+
+  it('offers full screen only where the browser has it', () => {
+    const call = new StageCall();
+    call.people = group();
+    Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: false });
+    const off = render(<DrawnStage call={call as unknown as DailyCall} onLeave={() => {}} onUseStandard={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }));
+    expect(screen.queryByRole('menuitem', { name: 'Full screen' })).toBeNull();
+    off.unmount();
+    Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: true });
+    const requested: Element[] = [];
+    Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', { configurable: true, value: function (this: Element) { requested.push(this); return Promise.resolve(); } });
+    render(<DrawnStage call={call as unknown as DailyCall} onLeave={() => {}} onUseStandard={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More options' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Full screen' }));
+    expect(requested[0]?.classList.contains('ve-drawn')).toBe(true);
   });
 });

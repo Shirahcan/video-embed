@@ -265,3 +265,31 @@ export function EndCallIcon() {
     </Icon>
   );
 }
+
+export function PinIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 17v5" />
+      <path d="M9 10.8V5h6v5.8l2.4 2.8a1 1 0 0 1-.8 1.4H7.4a1 1 0 0 1-.8-1.4L9 10.8z" />
+      <path d="M8 5h8" />
+    </Icon>
+  );
+}
+
+export function LayoutIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="4" width="11" height="16" rx="2" />
+      <rect x="16" y="4" width="5" height="7" rx="1.5" />
+      <rect x="16" y="13" width="5" height="7" rx="1.5" />
+    </Icon>
+  );
+}
+
+export function FullscreenIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+    </Icon>
+  );
+}

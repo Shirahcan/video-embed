@@ -1,7 +1,7 @@
 import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode, useCallback } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
-import { BlurIcon, MirrorIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, HandIcon, MicIcon, MicOffIcon, NoiseIcon, PeopleIcon, PresentIcon } from './icons';
+import { BlurIcon, FullscreenIcon, LayoutIcon, MirrorIcon, PinIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, HandIcon, MicIcon, MicOffIcon, NoiseIcon, PeopleIcon, PresentIcon } from './icons';
 import { REACTIONS, useHandsAndReactions, useRaisedHandNotice } from '../drawnHands';
 import { DrawnReactMenu } from './DrawnReactMenu';
 import { DrawnProductPanel, type CallPanel } from './DrawnProductPanel';
@@ -20,8 +20,10 @@ import { DrawnNotices } from './DrawnNotices';
 import { useHostControls } from '../hostControls';
 import { useDrawnChat } from '../drawnChat';
 import { useDrawnNetwork } from '../drawnNetwork';
-import { chooseDrawnLayout, drawnPeople, fitTiles, presenterOf, receiveLayers, type DrawnPerson } from '../drawnLayout';
-import { ShareTile, Sound, Tile } from './DrawnTile';
+import { arrangeStage, arrangementLayers, drawnPeople, fitTiles, presenterOf, type DrawnLayoutMode, type DrawnPerson } from '../drawnLayout';
+import { Sound } from './DrawnTile';
+import { DrawnTiles } from './DrawnTiles';
+import { useLayoutMode, useStageFullscreen } from '../drawnView';
 import { DrawnDeviceMenu } from './DrawnDeviceMenu';
 import { useDrawnDevices } from '../drawnDevices';
 import type { CallAccess, WaitingPerson } from '../hooks/useDailyFrame';
@@ -148,6 +150,10 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
   const [people, setPeople] = useState<DrawnPerson[]>(() => drawnPeople(call.participants() as Record<string, DailyParticipant>));
   // Who is speaking now (Daily's active speaker), for the ring on their tile.
   const [speakerId, setSpeakerId] = useState<string | null>(null);
+  // F5: the person's layout choice (per device), a pinned tile (this call), and full screen.
+  const view = useLayoutMode();
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
+  const fullscreen = useStageFullscreen(rootRef);
   // The stage's inner size, so the tiles are fitted to it (as Meet does), not stretched by a grid.
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState({ width: 0, height: 0 });
@@ -223,17 +229,16 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
   };
   // People waiting to be let in: a count on People for the host who can answer them.
   const knocking = hostControls.isHost ? waiting.length : 0;
-  const layout = chooseDrawnLayout(people);
   const presenter = presenterOf(people);
-  // Meet's tiles: with one other person they are large and you float in the corner; alone you see
-  // yourself; with two or more others everyone, you included, shares one grid (you last).
-  const tiles = layout === 'focus' ? others : layout === 'waiting' ? (self ? [self] : []) : self ? [...others, self] : others;
-  const fit = fitTiles(tiles.length, stage.width, stage.height);
+  // Auto (Meet's tiles: one other large with you in the corner, a grid with more), Tiled or
+  // Spotlight, then a pin over all of them (F5).
+  const arrangement = arrangeStage(people, { mode: view.mode, pinnedId, speakerId });
+  const fit = fitTiles(arrangement.tiles.length, stage.width, stage.height);
   // A ring only means something with someone to tell apart.
   const ringFor = (p: DrawnPerson) => others.length >= 1 && speakerId === p.id;
 
   // Spend a weak connection's bandwidth on what is large on screen.
-  const layersKey = JSON.stringify(receiveLayers(people, layout));
+  const layersKey = JSON.stringify(arrangementLayers(people, arrangement));
   useEffect(() => {
     const layers = JSON.parse(layersKey) as Record<string, 0 | 1 | 2>;
     if (Object.keys(layers).length === 0) return;
@@ -310,30 +315,17 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
           <button type="button" className="ve-drawn__notice-btn" onClick={float.close}>{labels.drawnFloatBack}</button>
         </div>
       ) : null}
-      {layout === 'share' && presenter?.screen ? (
-        <div className="ve-drawn__share" data-layout="share">
-          <ShareTile track={presenter.screen} label={labels.drawnPresenting(presenter.name || '?')} />
-          <div className="ve-drawn__strip">
-            {people.map((p) => (
-              <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} handLabel={labels.drawnHandRaised} reaction={hands.reactions[p.id] ?? null} speaking={ringFor(p)} variant="strip" mirror={mirror} />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div
-          ref={stageRef}
-          className={cx('ve-drawn__grid', `ve-drawn__grid--${layout}`)}
-          data-layout={layout}
-          data-columns={fit.columns}
-          style={{ '--ve-tile-w': `${fit.tileWidth}px` } as CSSProperties}
-        >
-          {layout === 'waiting' ? <p className="ve-drawn__waiting">{labels.drawnWaiting}</p> : null}
-          {tiles.map((p) => (
-            <Tile key={p.id} person={p} label={p.local ? labels.drawnYou : p.name || '?'} mutedLabel={labels.drawnMuted} handLabel={labels.drawnHandRaised} reaction={hands.reactions[p.id] ?? null} speaking={ringFor(p)} mirror={mirror} />
-          ))}
-        </div>
-      )}
-      {self && layout === 'focus' ? <Tile person={self} label={labels.drawnYou} mutedLabel={labels.drawnMuted} handLabel={labels.drawnHandRaised} reaction={hands.reactions[self.id] ?? null} speaking={ringFor(self)} variant="self" mirror={mirror} /> : null}
+      <DrawnTiles
+        arrangement={arrangement}
+        stageRef={stageRef}
+        fit={fit}
+        reactions={hands.reactions}
+        ringFor={ringFor}
+        mirror={mirror}
+        pinnedId={pinnedId}
+        onPin={setPinnedId}
+        self={self}
+      />
 
       <div className="ve-drawn__sound" hidden ref={soundRef}>
         {others.map((p) => <Sound key={p.id} track={p.audio} sinkId={devices.speakerId} onBlocked={() => setSoundBlocked(true)} />)}
@@ -517,6 +509,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
         <DrawnMoreMenu
           onUseStandard={onUseStandard}
           actions={[
+            ...(fullscreen.supported ? [{ key: 'fullscreen', title: fullscreen.on ? labels.drawnExitFullscreen : labels.drawnFullscreen, icon: <FullscreenIcon />, pressed: fullscreen.on, onSelect: fullscreen.toggle }] : []),
             ...(isFolded('float') ? [{ key: 'float', title: float.host ? labels.drawnFloatBack : labels.drawnFloatLong, icon: <PopOutIcon />, pressed: Boolean(float.host), onSelect: () => (float.host ? float.close() : void float.open()) }] : []),
             ...(isFolded('present') ? [{ key: 'present', title: presenting ? labels.drawnPresentStop : labels.drawnPresent, icon: <PresentIcon />, pressed: presenting, onSelect: togglePresent }] : []),
             ...(isFolded('react') ? REACTIONS.map((emoji) => ({ key: `react-${emoji}`, title: labels.drawnReactionName(emoji), icon: <span aria-hidden="true">{emoji}</span>, pressed: false, onSelect: () => hands.react(emoji) })) : []),
@@ -524,6 +517,18 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             ...panels.filter((x) => isFolded(`p:${x.key}`)).map((x) => ({ key: `p:${x.key}`, title: x.title ?? x.label, icon: x.icon, pressed: panel === `p:${x.key}`, badge: x.badge, onSelect: () => togglePanel(`p:${x.key}`) })),
             ...(isFolded('chat') ? [{ key: 'chat', title: chat.unread > 0 ? labels.drawnChatUnread(chat.unread) : labels.drawnChat, icon: <ChatIcon />, pressed: chatOpen, badge: chat.unread, onSelect: () => togglePanel('chat') }] : []),
             ...(isFolded('people') ? [{ key: 'people', title: labels.drawnPeople, icon: <PeopleIcon />, pressed: peopleOpen, badge: knocking + handsUp, onSelect: () => togglePanel('people') }] : []),
+          ]}
+          choices={[
+            {
+              title: labels.drawnLayout,
+              value: view.mode,
+              onChange: (key) => view.setMode(key as DrawnLayoutMode),
+              options: [
+                { key: 'auto', title: labels.drawnLayoutAuto, detail: labels.drawnLayoutAutoDetail, icon: <LayoutIcon /> },
+                { key: 'tiled', title: labels.drawnLayoutTiled, detail: labels.drawnLayoutTiledDetail, icon: <PeopleIcon /> },
+                { key: 'spotlight', title: labels.drawnLayoutSpotlight, detail: labels.drawnLayoutSpotlightDetail, icon: <PinIcon /> },
+              ],
+            },
           ]}
           switches={[
             ...(effects.support.noise ? [{ key: 'noise', on: effects.noise, title: labels.drawnNoise, detail: labels.drawnNoiseDetail, icon: <NoiseIcon />, onToggle: effects.toggleNoise }] : []),

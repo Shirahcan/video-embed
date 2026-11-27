@@ -108,3 +108,58 @@ export function receiveLayers(people: DrawnPerson[], layout: DrawnLayout): Recor
   for (const p of others) out[p.id] = layer;
   return out;
 }
+
+/** The person's choice of layout (F5), remembered per device. Auto is the layout above. */
+export type DrawnLayoutMode = 'auto' | 'tiled' | 'spotlight';
+
+/**
+ * What the stage draws, once the person's layout choice and pin are applied (F5):
+ * - `grid` / `focus` / `waiting`: tiles, as chooseDrawnLayout has always drawn them;
+ * - `spotlight`: ONE large thing (`main`: a person's video, or a presenter's screen) beside a strip
+ *   of everyone else. A shared screen in Auto or Tiled is a spotlight on that screen (`share`).
+ *
+ * A pin wins over everything, a shared screen included (the person chose to watch that face), and
+ * holds while the speaker changes; a pin on someone who left is simply ignored.
+ */
+export interface DrawnArrangement {
+  kind: DrawnLayout | 'spotlight';
+  /** What is drawn large on a spotlight or share; null otherwise. */
+  main: { person: DrawnPerson; screen: boolean } | null;
+  /** Beside `main` on a spotlight or share. */
+  strip: DrawnPerson[];
+  /** The grid's tiles (grid / focus / waiting). */
+  tiles: DrawnPerson[];
+  /** The viewer floats in the corner over the tiles (focus). */
+  selfCorner: boolean;
+}
+
+export function arrangeStage(
+  people: DrawnPerson[],
+  { mode = 'auto', pinnedId = null, speakerId = null }: { mode?: DrawnLayoutMode; pinnedId?: string | null; speakerId?: string | null } = {},
+): DrawnArrangement {
+  const others = people.filter((p) => !p.local);
+  const self = people.find((p) => p.local) ?? null;
+  const none: Pick<DrawnArrangement, 'main' | 'strip' | 'tiles' | 'selfCorner'> = { main: null, strip: [], tiles: [], selfCorner: false };
+  if (others.length === 0) return { ...none, kind: 'waiting', tiles: self ? [self] : [] };
+
+  const pinned = pinnedId ? people.find((p) => p.id === pinnedId) ?? null : null;
+  if (pinned) {
+    return { ...none, kind: 'spotlight', main: { person: pinned, screen: Boolean(pinned.screen) && !pinned.local }, strip: people.filter((p) => p.id !== pinned.id) };
+  }
+  const presenter = presenterOf(people);
+  if (presenter) return { ...none, kind: 'share', main: { person: presenter, screen: true }, strip: people };
+  if (mode === 'spotlight') {
+    const lead = others.find((p) => p.id === speakerId) ?? others[0]!;
+    return { ...none, kind: 'spotlight', main: { person: lead, screen: false }, strip: people.filter((p) => p.id !== lead.id) };
+  }
+  if (mode === 'tiled' || others.length >= 2) return { ...none, kind: 'grid', tiles: self ? [...others, self] : others };
+  return { ...none, kind: 'focus', tiles: others, selfCorner: Boolean(self) };
+}
+
+/** receiveLayers for an arrangement: whoever is large is received high, the strip low (F5). */
+export function arrangementLayers(people: DrawnPerson[], arrangement: DrawnArrangement): Record<string, 0 | 1 | 2> {
+  if (arrangement.kind !== 'spotlight') return receiveLayers(people, arrangement.kind);
+  const out: Record<string, 0 | 1 | 2> = {};
+  for (const p of people) if (!p.local) out[p.id] = arrangement.main && !arrangement.main.screen && arrangement.main.person.id === p.id ? 2 : 0;
+  return out;
+}
