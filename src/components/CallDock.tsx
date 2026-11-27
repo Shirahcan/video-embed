@@ -73,6 +73,8 @@ export interface DockedCallHandlers {
   onRemovePerson?: (person: { userId: string | null; name: string }) => void;
   /** The page's own call panels (CallFrame `panels`). */
   panels?: CallPanel[];
+  /** CallFrame `onDrawnShowing`. */
+  onDrawnShowing?: (showing: boolean) => void;
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
   onKnock?: (person: WaitingPerson) => void;
@@ -87,6 +89,12 @@ export interface CallDockValue {
   isMinimized: boolean;
   /** Register (or refresh) the call. Safe to call on every render. */
   start: (call: DockedCall, handlers?: DockedCallHandlers) => void;
+  /**
+   * A page coming BACK to a call the dock still holds (it lays the call over its placeholder rather
+   * than starting it) hands over what is its own: its panels and callbacks, merged over the ones the
+   * page that started the call gave. Ignored for any other call.
+   */
+  adopt: (key: string, handlers: Partial<DockedCallHandlers>) => void;
   stop: () => void;
   /** The page's placeholder the call lays itself over; null when the page goes away. */
   setAnchor: (el: HTMLElement | null) => void;
@@ -148,13 +156,28 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
   // then read and left (too early, already over, never clicked Join) has nothing to keep alive.
   const [hasJoined, setHasJoined] = useState(false);
   const handlersRef = useRef<DockedCallHandlers>({});
+  // The page's panels are STATE, not read through the ref: their content changes as the page does (a
+  // note being typed), and the dock must redraw the open panel with it.
+  const [panels, setPanels] = useState<CallPanel[] | undefined>(undefined);
   // The key of a call forgotten unjoined. Its page may still be mounted and re-register it on every
   // render; it stays forgotten until a placeholder appears again (the page wants the call back).
   const forgottenRef = useRef<string | null>(null);
+  const callKeyRef = useRef<string | null>(null);
+  // Whether the drawn screen is up, replayed to a page that registers later (it came back mid-call).
+  const showingRef = useRef<boolean | null>(null);
+  const toldRef = useRef<((showing: boolean) => void) | null>(null);
+  const tell = useCallback((fn: ((showing: boolean) => void) | undefined) => {
+    if (!fn || fn === toldRef.current || showingRef.current === null) return;
+    toldRef.current = fn;
+    fn(showingRef.current);
+  }, []);
 
   const start = useCallback((next: DockedCall, handlers?: DockedCallHandlers) => {
     if (forgottenRef.current === next.key) return;
     handlersRef.current = handlers ?? {};
+    callKeyRef.current = next.key;
+    setPanels(handlers?.panels);
+    tell(handlers?.onDrawnShowing);
     setCall((prev) => {
       if (prev && prev.key === next.key) {
         const merged = { ...next, url: prev.url };
@@ -162,10 +185,21 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
       }
       return next;
     });
-  }, []);
+  }, [tell]);
+
+  const adopt = useCallback((key: string, handlers: Partial<DockedCallHandlers>) => {
+    if (callKeyRef.current !== key) return;
+    handlersRef.current = { ...handlersRef.current, ...handlers };
+    if ('panels' in handlers) setPanels(handlers.panels);
+    tell(handlers.onDrawnShowing);
+  }, [tell]);
 
   const stop = useCallback(() => {
     handlersRef.current = {};
+    callKeyRef.current = null;
+    showingRef.current = null;
+    toldRef.current = null;
+    setPanels(undefined);
     setCall(null);
     setAnchorState(null);
     setOverlayState(null);
@@ -175,6 +209,8 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
 
   const setAnchor = useCallback((el: HTMLElement | null) => {
     if (el) forgottenRef.current = null;
+    // The page went away: its panels drew from it, so they go too (a returning page adopts its own).
+    else setPanels(undefined);
     setAnchorState(el);
   }, []);
   const setOverlay = useCallback((node: ReactNode) => setOverlayState(node), []);
@@ -225,6 +261,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
     if (call !== null && anchor === null && !hasJoined) {
       forgottenRef.current = call.key;
       handlersRef.current = {};
+      callKeyRef.current = null;
       setCall(null);
       setOverlayState(null);
     }
@@ -233,8 +270,8 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
   const isMinimized = call !== null && (anchor === null || box === null);
 
   const value = useMemo<CallDockValue>(
-    () => ({ activeKey: call?.key ?? null, isMinimized, start, stop, setAnchor, setOverlay }),
-    [call?.key, isMinimized, start, stop, setAnchor, setOverlay],
+    () => ({ activeKey: call?.key ?? null, isMinimized, start, adopt, stop, setAnchor, setOverlay }),
+    [call?.key, isMinimized, start, adopt, stop, setAnchor, setOverlay],
   );
 
   // Stable identities for the frame, reading through the ref: the page can swap its handlers, or
@@ -247,6 +284,11 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
   const checkEnded = useCallback(() => h.current.checkEnded?.() ?? Promise.resolve(false), [h]);
   const onEndForEveryone = useCallback(() => h.current.onEndForEveryone?.() ?? Promise.resolve(), [h]);
   const onEnded = useCallback((how: 'by-me' | 'ended') => h.current.onEnded?.(how), [h]);
+  const onDrawnShowing = useCallback((showing: boolean) => {
+    showingRef.current = showing;
+    toldRef.current = h.current.onDrawnShowing ?? null;
+    h.current.onDrawnShowing?.(showing);
+  }, [h]);
   // The device options and the service's answer pass straight through (call continuity).
   const presence = useCallback(
     (kind: PresenceKind, options?: PresenceOptions) => (options ? h.current.presence?.(kind, options) : h.current.presence?.(kind)) ?? Promise.resolve(),
@@ -328,7 +370,8 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             onLeft={onLeft}
             onLeftCall={onLeftCall}
             onRemovePerson={onRemovePerson}
-            panels={h.current.panels}
+            panels={panels}
+            onDrawnShowing={onDrawnShowing}
             onFailure={onFailure}
             onDeviceError={onDeviceError}
             onKnock={onKnock}

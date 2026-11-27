@@ -78,6 +78,8 @@ vi.mock('@daily-co/daily-js', () => ({
 }));
 
 import { CallFrame } from '../src/components/CallFrame';
+import { CallDockProvider, useCallDock, type DockedCall, type DockedCallHandlers } from '../src/components/CallDock';
+import { useEffect, useState } from 'react';
 import { chooseCallScreen, preferStandardScreen, splitJoinUrl, STANDARD_SCREEN_KEY } from '../src/callScreen';
 
 const URL_WITH_PASS = 'https://shirah.daily.co/room-1?t=secret-pass';
@@ -497,6 +499,86 @@ describe('which call screen a device gets', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Extra' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Close Extra' }));
       expect(screen.queryByRole('region', { name: 'Extra' })).toBeNull();
+    });
+
+    it('redraws an open panel when the page behind a docked call changes its content', async () => {
+      // Only the PAGE re-renders (its own state), as in a product: the dock above it does not.
+      let type: (text: string) => void = () => {};
+      function Room({ call }: { call: DockedCall }) {
+        const dock = useCallDock();
+        const [text, setText] = useState('first draft');
+        type = setText;
+        const handlers: DockedCallHandlers = { panels: [{ key: 'notes', label: 'Notes', icon: <span>N</span>, render: () => <p>{text}</p> }] };
+        useEffect(() => {
+          dock.start(call, handlers);
+        });
+        return <div ref={dock.setAnchor} style={{ width: 800, height: 500 }} />;
+      }
+      const call: DockedCall = { key: 'm1', url: URL_WITH_PASS, returnHref: '/room', drawn: true, continuity: false };
+      nextObject = { people: { local: me } } as never;
+      render(
+        <CallDockProvider navigate={() => {}}>
+          <Room call={call} />
+        </CallDockProvider>,
+      );
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Notes' }));
+      expect((await screen.findByRole('region', { name: 'Notes' })).textContent).toContain('first draft');
+      act(() => type('second draft'));
+      await waitFor(() => expect(screen.getByRole('region', { name: 'Notes' }).textContent).toContain('second draft'));
+    });
+
+    it('a page coming back mid-call adopts the call: its own panels, and it is told the drawn screen is up', async () => {
+      const call: DockedCall = { key: 'm2', url: URL_WITH_PASS, returnHref: '/room', drawn: true, continuity: false };
+      function First() {
+        const dock = useCallDock();
+        useEffect(() => {
+          dock.start(call, { panels: [{ key: 'notes', label: 'Notes', icon: <span>N</span>, render: () => <p>old page</p> }] });
+        });
+        return <div ref={dock.setAnchor} style={{ width: 800, height: 500 }} />;
+      }
+      const showing = vi.fn();
+      function Back() {
+        const dock = useCallDock();
+        useEffect(() => {
+          dock.adopt('m2', { panels: [{ key: 'notes', label: 'Notes', icon: <span>N</span>, render: () => <p>new page</p> }], onDrawnShowing: showing });
+        });
+        return <div ref={dock.setAnchor} style={{ width: 800, height: 500 }} />;
+      }
+      function App({ page }: { page: 'first' | 'away' | 'back' }) {
+        return (
+          <CallDockProvider navigate={() => {}}>
+            {page === 'first' ? <First /> : page === 'back' ? <Back /> : null}
+          </CallDockProvider>
+        );
+      }
+      nextObject = { people: { local: me } } as never;
+      const { rerender } = render(<App page="first" />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      await screen.findByRole('button', { name: 'Notes' });
+
+      rerender(<App page="away" />);
+      // In the corner: four buttons, and no panel drawn from a page that is gone.
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Notes' })).toBeNull());
+
+      rerender(<App page="back" />);
+      await waitFor(() => expect(showing).toHaveBeenCalledWith(true));
+      fireEvent.click(await screen.findByRole('button', { name: 'Notes' }));
+      expect((await screen.findByRole('region', { name: 'Notes' })).textContent).toContain('new page');
+      expect(latest().joins).toHaveLength(1);
+    });
+
+    it('tells the product while the drawn screen is up, and when it goes', async () => {
+      const showing = vi.fn();
+      nextObject = { people: { local: me } } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} panels={panels} onDrawnShowing={showing} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      await waitFor(() => expect(showing).toHaveBeenLastCalledWith(true));
+      act(() => latest().emit('left-meeting'));
+      await waitFor(() => expect(showing).toHaveBeenLastCalledWith(false));
     });
 
     it('is ignored on the standard screen', async () => {

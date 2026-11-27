@@ -58,6 +58,11 @@ export interface CallFrameProps {
   onRemovePerson?: (person: { userId: string | null; name: string }) => void;
   /** The product's own side panels on the drawn screen (F3: notes, meeting details). Ignored on Prebuilt. */
   panels?: CallPanel[];
+  /**
+   * Whether the drawn screen is up (true) or not (false), each time that changes: it can fall back to
+   * the standard screen mid-call. A product moves its own side tools into `panels` only while true.
+   */
+  onDrawnShowing?: (showing: boolean) => void;
   /** Every failure and its outcome, for the product's own record. */
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
@@ -184,7 +189,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, knockName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onRemovePerson, panels, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, knockName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onRemovePerson, panels, onDrawnShowing, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
   // Call continuity: one id per browser, and what to do about the person's other device.
   const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
   // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
@@ -552,6 +557,12 @@ export function CallFrame({ url, userName = null, knockName = null, fetchFreshUr
   const ended = endStep === 'ended';
   const showFailure = !ended && endStep !== 'ending' && frame.state === 'error' && failure !== null;
 
+  // Only while the person is getting in or in the call: after leaving, a frozen call with live-looking buttons would mislead.
+  const drawnShowing = screen === 'drawn' && frame.call !== null && !ended && frame.state !== 'left' && frame.state !== 'error';
+  useEffect(() => {
+    onDrawnShowing?.(drawnShowing);
+  }, [drawnShowing, onDrawnShowing]);
+
   return (
     <div className={cx('ve-call', className)} style={style}>
       <KnockBar
@@ -611,7 +622,7 @@ export function CallFrame({ url, userName = null, knockName = null, fetchFreshUr
         <div ref={containerRef} className="ve-frame" />
 
         {/* Only while the person is getting in or in the call: after leaving, a frozen call with live-looking buttons would mislead. */}
-        {screen === 'drawn' && frame.call && !ended && frame.state !== 'left' && frame.state !== 'error' ? (
+        {drawnShowing && frame.call ? (
           <DrawnStageBoundary onCrash={fallBackToPrebuilt}>
             <DrawnStage
               call={frame.call}
