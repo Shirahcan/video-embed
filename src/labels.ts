@@ -312,6 +312,12 @@ export interface VideoLabels {
   shareWho: string;
   sharePersonHint: string;
   shareGuestHint: string;
+  /** Seats: a link for one named person with no account, and what they are to the call. */
+  shareSeatName: string;
+  shareSeatNamePlaceholder: string;
+  shareSeatRole: string;
+  shareSeatHint: string;
+  shareSeatMake: string;
   shareLoading: string;
   shareMaking: string;
   shareCopy: string;
@@ -777,6 +783,11 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   shareWho: 'Who is it for?',
   sharePersonHint: 'Their own link: it opens the call without signing in, as them. Send it only to them.',
   shareGuestHint: 'Anyone with this link types their name and asks to join. You let them in from the call.',
+  shareSeatName: 'Their name',
+  shareSeatNamePlaceholder: 'For example, Amara Obi',
+  shareSeatRole: 'Who are they to the call?',
+  shareSeatHint: 'They join under this name and role, so everyone in the call can see who they are. You still let them in.',
+  shareSeatMake: 'Make their link',
   shareLoading: 'Loading...',
   shareMaking: 'Making the link...',
   shareCopy: 'Copy link',

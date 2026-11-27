@@ -8,6 +8,11 @@ export interface ShareCallOption {
   label: string;
   /** Their part in the call ("Client", "Participant", "Guest"). */
   role: string;
+  /**
+   * A seat: a link for one named person with no account. When set, picking this option asks for
+   * their name and one of these roles (the product's words), then `linkForSeat` makes the link.
+   */
+  seatRoles?: { key: string; label: string }[];
 }
 
 /** The product's own backend, which asks video-service (the package never calls the service). */
@@ -15,6 +20,8 @@ export interface ShareCallAdapter {
   options: () => Promise<ShareCallOption[]>;
   /** That person's link (made on first ask, the same one after). */
   linkFor: (key: string) => Promise<string>;
+  /** A seat's link, for one named person and their role key (needed when an option has `seatRoles`). */
+  linkForSeat?: (name: string, role: string) => Promise<string>;
 }
 
 export interface ShareCallLinkProps {
@@ -83,6 +90,8 @@ function ShareCallDialog({ adapter, callTitle, onClose, onNotice, onError }: { a
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [seatName, setSeatName] = useState('');
+  const [seatRole, setSeatRole] = useState<string | null>(null);
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   useEffect(() => {
@@ -116,10 +125,16 @@ function ShareCallDialog({ adapter, callTitle, onClose, onNotice, onError }: { a
     };
   }, [adapter]);
 
+  const chosenOption = (options ?? []).find((o) => o.key === chosen) ?? null;
+  const seatRoles = chosenOption?.seatRoles && adapter.linkForSeat ? chosenOption.seatRoles : null;
+  const seatKey = seatRole ? `seat|${seatName.trim().replace(/\s+/g, ' ').toLowerCase()}|${seatRole}` : null;
+
   const pick = async (key: string) => {
     setChosen(key);
     setCopied(false);
     setFailed(false);
+    // A seat waits for its name and role.
+    if ((options ?? []).find((o) => o.key === key)?.seatRoles && adapter.linkForSeat) return;
     if (links[key]) return;
     setBusy(true);
     try {
@@ -133,7 +148,24 @@ function ShareCallDialog({ adapter, callTitle, onClose, onNotice, onError }: { a
     }
   };
 
-  const url = chosen ? links[chosen] ?? null : null;
+  const makeSeat = async () => {
+    if (!adapter.linkForSeat || !seatRole || seatName.trim().length < 2 || !seatKey) return;
+    setCopied(false);
+    setFailed(false);
+    if (links[seatKey]) return;
+    setBusy(true);
+    try {
+      const made = await adapter.linkForSeat(seatName.trim().replace(/\s+/g, ' '), seatRole);
+      setLinks((l) => ({ ...l, [seatKey]: made }));
+    } catch (e) {
+      setFailed(true);
+      onError?.(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const url = seatRoles ? (seatKey ? links[seatKey] ?? null : null) : chosen ? links[chosen] ?? null : null;
 
   const copy = async () => {
     if (!url) return;
@@ -188,7 +220,43 @@ function ShareCallDialog({ adapter, callTitle, onClose, onNotice, onError }: { a
               </label>
             ))}
           </fieldset>
-          {chosen ? (
+          {seatRoles ? (
+            <div className="ve-share__seat">
+              <label className="ve-share__legend" htmlFor={`${ids}-seat`}>{labels.shareSeatName}</label>
+              <input
+                id={`${ids}-seat`}
+                className="ve-share__url"
+                value={seatName}
+                maxLength={80}
+                autoComplete="off"
+                placeholder={labels.shareSeatNamePlaceholder}
+                onChange={(e) => {
+                  setSeatName(e.target.value);
+                  setCopied(false);
+                }}
+              />
+              <fieldset className="ve-share__who">
+                <legend className="ve-share__legend">{labels.shareSeatRole}</legend>
+                {seatRoles.map((r) => (
+                  <label key={r.key} className={cx('ve-share__option ve-share__option--role', seatRole === r.key && 'is-selected')}>
+                    <input type="radio" name={`${ids}-role`} value={r.key} checked={seatRole === r.key} onChange={() => { setSeatRole(r.key); setCopied(false); }} disabled={busy} />
+                    <span className="ve-share__name">{r.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+              <p className="ve-share__hint">{labels.shareSeatHint}</p>
+              {!url ? (
+                <button
+                  type="button"
+                  className={cx('ve-btn', classNames.button)}
+                  disabled={busy || !seatRole || seatName.trim().length < 2}
+                  onClick={() => void makeSeat()}
+                >
+                  {labels.shareSeatMake}
+                </button>
+              ) : null}
+            </div>
+          ) : chosen ? (
             <p className="ve-share__hint">{chosen === GUEST ? labels.shareGuestHint : labels.sharePersonHint}</p>
           ) : null}
           {busy ? <p className="ve-tx__meta" aria-live="polite">{labels.shareMaking}</p> : null}

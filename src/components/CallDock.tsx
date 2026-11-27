@@ -129,6 +129,13 @@ function uploadOf(handlers?: Partial<DockedCallHandlers>): { maxBytes?: number; 
   return handlers?.onDocumentUpload ? { maxBytes: handlers.uploadMaxBytes, accept: handlers.uploadAccept } : null;
 }
 
+type DocUpload = { maxBytes?: number; accept?: string } | null;
+
+/** Keep the same object when nothing changed, so a page re-adopting on every render never re-renders the dock. */
+function keepUpload(next: DocUpload): (prev: DocUpload) => DocUpload {
+  return (prev) => (prev === next || (prev && next && prev.maxBytes === next.maxBytes && prev.accept === next.accept) ? prev : next);
+}
+
 function sameCall(a: DockedCall, b: DockedCall): boolean {
   return (
     a.key === b.key &&
@@ -191,7 +198,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
     handlersRef.current = handlers ?? {};
     callKeyRef.current = next.key;
     setPanels(handlers?.panels);
-    setDocUpload(uploadOf(handlers));
+    setDocUpload(keepUpload(uploadOf(handlers)));
     tell(handlers?.onDrawnShowing);
     setCall((prev) => {
       if (prev && prev.key === next.key) {
@@ -206,7 +213,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
     if (callKeyRef.current !== key) return;
     handlersRef.current = { ...handlersRef.current, ...handlers };
     if ('panels' in handlers) setPanels(handlers.panels);
-    if ('onDocumentUpload' in handlers) setDocUpload(uploadOf(handlers));
+    if ('onDocumentUpload' in handlers) setDocUpload(keepUpload(uploadOf(handlers)));
     tell(handlers.onDrawnShowing);
   }, [tell]);
 

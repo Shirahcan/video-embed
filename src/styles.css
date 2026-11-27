@@ -208,6 +208,9 @@
 .ve-share__option input { accent-color: var(--ve-accent); margin: 0; }
 .ve-share__name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ve-share__role { font-size: 12px; color: var(--ve-ink-muted); }
+.ve-share__seat { display: grid; gap: 10px; margin-bottom: 10px; }
+.ve-share__option--role { grid-template-columns: auto 1fr; }
+.ve-share__seat > .ve-btn { justify-self: start; }
 .ve-share__hint { margin: 0 0 10px; font-size: 13px; color: var(--ve-ink-muted); line-height: 1.5; }
 .ve-share__url { width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--ve-border); border-radius: var(--ve-radius); background: var(--ve-surface-muted, var(--ve-surface)); color: var(--ve-ink); font: inherit; font-size: 13px; outline: none; }
 .ve-share__url:focus { border-color: var(--ve-accent); }

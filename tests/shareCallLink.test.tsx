@@ -52,4 +52,36 @@ describe('ShareCallLink', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Share...' })));
     expect(share).toHaveBeenCalledWith({ title: 'Study permit review', text: 'Join "Study permit review"', url: 'https://app.test/m/client-token' });
   });
+
+  it('a seat asks for the name and role, then makes that person their link', async () => {
+    const linkForSeat = vi.fn(async (name: string, role: string) => `https://app.test/m/seat-${role}`);
+    const a: ShareCallAdapter = {
+      options: vi.fn().mockResolvedValue([
+        { key: 'seat', label: 'Someone else, by name', role: 'Named guest', seatRoles: [{ key: 'interpreter', label: 'Interpreter' }, { key: 'dependant', label: 'Dependant' }] },
+      ]),
+      linkFor: vi.fn(),
+      linkForSeat,
+    };
+    render(<ShareCallLink adapter={a} callTitle="Study permit review" variant="button" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Share link' }));
+    const seat = await screen.findByRole('radio', { name: /Someone else, by name/ });
+    await act(async () => fireEvent.click(seat));
+    expect(a.linkFor).not.toHaveBeenCalled();
+
+    const make = screen.getByRole('button', { name: 'Make their link' }) as HTMLButtonElement;
+    expect(make.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Their name'), { target: { value: '  Amara   Obi ' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Interpreter' }));
+    expect(make.disabled).toBe(false);
+    await act(async () => fireEvent.click(make));
+    expect(linkForSeat).toHaveBeenCalledWith('Amara Obi', 'interpreter');
+    await waitFor(() => expect(screen.getByDisplayValue('https://app.test/m/seat-interpreter')).toBeTruthy());
+    expect(screen.getByText(/join under this name and role/)).toBeTruthy();
+
+    // Another role is another link, asked for again.
+    fireEvent.click(screen.getByRole('radio', { name: 'Dependant' }));
+    expect(screen.queryByDisplayValue('https://app.test/m/seat-interpreter')).toBeNull();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Make their link' })));
+    expect(linkForSeat).toHaveBeenLastCalledWith('Amara Obi', 'dependant');
+  });
 });
