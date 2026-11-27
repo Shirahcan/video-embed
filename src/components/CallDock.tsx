@@ -66,6 +66,8 @@ export interface DockedCallHandlers {
   onLeft?: () => void;
   /** The person chose to leave (CallFrame `onLeftCall`). */
   onLeftCall?: (how: LeftCallHow) => void;
+  /** A host removed someone (CallFrame `onRemovePerson`). */
+  onRemovePerson?: (person: { userId: string | null; name: string }) => void;
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
   onKnock?: (person: WaitingPerson) => void;
@@ -266,6 +268,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
   }, [h]);
   const onEndCue = useCallback(() => h.current.onEndCue?.(), [h]);
   const onLeftCall = useCallback((how: LeftCallHow) => h.current.onLeftCall?.(how), [h]);
+  const onRemovePerson = useCallback((p: { userId: string | null; name: string }) => h.current.onRemovePerson?.(p), [h]);
   // The drawn screen carries its own round buttons in the corner window; the text bar is for Prebuilt.
   const [drawnInUse, setDrawnInUse] = useState(false);
   const onScreenChange = useCallback((s: 'drawn' | 'prebuilt') => setDrawnInUse(s === 'drawn'), []);
@@ -317,6 +320,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             onJoined={onJoined}
             onLeft={onLeft}
             onLeftCall={onLeftCall}
+            onRemovePerson={onRemovePerson}
             onFailure={onFailure}
             onDeviceError={onDeviceError}
             onKnock={onKnock}

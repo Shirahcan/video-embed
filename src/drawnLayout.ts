@@ -19,6 +19,8 @@ export interface DrawnPerson {
   videoOn: boolean;
   /** A room owner (a host's token): may mute and remove others. */
   owner?: boolean;
+  /** The product's id for this person (the token's user_id); null for someone let in from the lobby. */
+  userId?: string | null;
 }
 
 type RawTrack = { state?: string; persistentTrack?: MediaStreamTrack };
@@ -44,6 +46,7 @@ export function drawnPeople(raw: Record<string, DailyParticipant> | null | undef
       audioOn: tracks?.audio?.state !== 'off' && tracks?.audio?.state !== 'blocked',
       videoOn: tracks?.video?.state !== 'off' && tracks?.video?.state !== 'blocked',
       owner: Boolean((p as unknown as { owner?: boolean }).owner),
+      userId: (p as unknown as { user_id?: string }).user_id || null,
     };
   });
   return people.sort((a, b) => Number(b.local) - Number(a.local));

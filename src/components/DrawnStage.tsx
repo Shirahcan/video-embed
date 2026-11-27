@@ -64,9 +64,11 @@ export interface DrawnStageProps {
   waiting?: WaitingPerson[];
   /** Let a waiting person in (true) or turn them away (false). */
   onAnswer?: (id: string, letIn: boolean) => void;
+  /** A host removed someone: the product records it, so their way back is asking to join (F1b). */
+  onRemovePerson?: (person: { userId: string | null; name: string }) => void;
 }
 
-export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices, waiting = [], onAnswer }: DrawnStageProps) {
+export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices, waiting = [], onAnswer, onRemovePerson }: DrawnStageProps) {
   const { labels } = useVideoUi();
   const devices = useDrawnDevices(call, { microphone: labels.microphone, camera: labels.camera, speaker: labels.speaker }, setDevices);
   // The browser refused to play the call's sound (no click on the page yet): one button fixes it.
@@ -393,7 +395,18 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
           people={people}
           waiting={hostControls.isHost ? waiting : []}
           onAnswer={onAnswer}
-          host={hostControls.isHost ? { mute: hostControls.mute, remove: hostControls.remove } : null}
+          host={
+            hostControls.isHost
+              ? {
+                  mute: hostControls.mute,
+                  remove: (id) => {
+                    const p = people.find((x) => x.id === id);
+                    hostControls.remove(id);
+                    if (p) onRemovePerson?.({ userId: p.userId ?? null, name: p.name });
+                  },
+                }
+              : null
+          }
           onClose={() => setPanel(null)}
         />
       ) : null}

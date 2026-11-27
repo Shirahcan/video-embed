@@ -336,7 +336,7 @@ describe('which call screen a device gets', () => {
 
   describe('the People panel (F1)', () => {
     const host = { session_id: 'me', user_name: 'Fatima', local: true, owner: true, tracks: { audio: { state: 'playable' }, video: { state: 'playable' } } };
-    const guest = { session_id: 'g1', user_name: 'Maria Garcia', local: false, tracks: { audio: { state: 'playable' }, video: { state: 'off' } } };
+    const guest = { session_id: 'g1', user_name: 'Maria Garcia', user_id: 'u-maria', local: false, tracks: { audio: { state: 'playable' }, video: { state: 'off' } } };
 
     it('lists everyone with their microphone and camera; a guest gets no host actions', async () => {
       nextObject = { people: { local: { ...host, owner: false }, g1: guest } } as never;
@@ -359,7 +359,8 @@ describe('which call screen a device gets', () => {
         updateParticipant: (id: string, u: unknown) => { updates.push([id, u]); },
         sendAppMessage: (data: unknown, to: string) => { sent.push([data, to]); },
       } as never;
-      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} />);
+      const onRemovePerson = vi.fn();
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} onRemovePerson={onRemovePerson} />);
       await waitFor(() => expect(latest().joins).toHaveLength(1));
       act(() => latest().emit('joined-meeting'));
       fireEvent.click(await screen.findByRole('button', { name: 'People in the call' }));
@@ -376,6 +377,7 @@ describe('which call screen a device gets', () => {
       expect(screen.getByRole('alertdialog').textContent).toContain('Remove Maria Garcia from the call?');
       fireEvent.click(screen.getByRole('button', { name: 'Remove from the call' }));
       expect(updates).toEqual([['g1', { setAudio: false }], ['g1', { eject: true }]]);
+      expect(onRemovePerson).toHaveBeenCalledWith({ userId: 'u-maria', name: 'Maria Garcia' });
       expect(screen.queryByRole('alertdialog')).toBeNull();
     });
 

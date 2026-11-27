@@ -45,6 +45,11 @@ export interface CallFrameProps {
    * took them out (F1), so the product says that instead, with no way straight back in.
    */
   onLeftCall?: (how: LeftCallHow) => void;
+  /**
+   * A host removed someone on the drawn screen (F1b). The product records it so that person is never
+   * handed a pass again and can only ask to join; `userId` is null for someone let in from the lobby.
+   */
+  onRemovePerson?: (person: { userId: string | null; name: string }) => void;
   /** Every failure and its outcome, for the product's own record. */
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
@@ -171,7 +176,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onRemovePerson, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
   // Call continuity: one id per browser, and what to do about the person's other device.
   const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
   // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
@@ -610,6 +615,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
               onEndForEveryone={onEndForEveryone ? () => void endForEveryone() : undefined}
               setDevices={frame.setDevices}
               waiting={frame.waiting}
+              onRemovePerson={onRemovePerson}
               onAnswer={(id, letIn) => void frame.call?.updateWaitingParticipant(id, { grantRequestedAccess: letIn }).catch(() => {})}
               onUseStandard={() => {
                 preferStandardScreen();
