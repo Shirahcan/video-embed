@@ -16,6 +16,7 @@ import type { CallParticipant, WaitingPerson } from '../hooks/useDailyFrame';
 import { cx, useVideoUi } from '../theme';
 import { CallFrame, type LeftCallHow, type RecoveryStatus } from './CallFrame';
 import type { CallPanel } from './DrawnProductPanel';
+import type { DocumentUploadHandler } from '../drawnDocRequests';
 
 /**
  * The call follows the person around the product.
@@ -75,6 +76,10 @@ export interface DockedCallHandlers {
   onRemovePerson?: (person: { userId: string | null; name: string }) => void;
   /** The page's own call panels (CallFrame `panels`). */
   panels?: CallPanel[];
+  /** D1a: CallFrame `onDocumentUpload`, with the limit and accepted types its picker uses. */
+  onDocumentUpload?: DocumentUploadHandler;
+  uploadMaxBytes?: number;
+  uploadAccept?: string;
   /** CallFrame `onDrawnShowing`. */
   onDrawnShowing?: (showing: boolean) => void;
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
@@ -120,6 +125,10 @@ const MINI = { width: 320, height: 224, margin: 20 };
 
 type Box = { top: number; left: number; width: number; height: number };
 
+function uploadOf(handlers?: Partial<DockedCallHandlers>): { maxBytes?: number; accept?: string } | null {
+  return handlers?.onDocumentUpload ? { maxBytes: handlers.uploadMaxBytes, accept: handlers.uploadAccept } : null;
+}
+
 function sameCall(a: DockedCall, b: DockedCall): boolean {
   return (
     a.key === b.key &&
@@ -162,6 +171,8 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
   // The page's panels are STATE, not read through the ref: their content changes as the page does (a
   // note being typed), and the dock must redraw the open panel with it.
   const [panels, setPanels] = useState<CallPanel[] | undefined>(undefined);
+  // D1a: whether this screen takes asked-for documents (state, so a page turning it on re-renders).
+  const [docUpload, setDocUpload] = useState<{ maxBytes?: number; accept?: string } | null>(null);
   // The key of a call forgotten unjoined. Its page may still be mounted and re-register it on every
   // render; it stays forgotten until a placeholder appears again (the page wants the call back).
   const forgottenRef = useRef<string | null>(null);
@@ -180,6 +191,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
     handlersRef.current = handlers ?? {};
     callKeyRef.current = next.key;
     setPanels(handlers?.panels);
+    setDocUpload(uploadOf(handlers));
     tell(handlers?.onDrawnShowing);
     setCall((prev) => {
       if (prev && prev.key === next.key) {
@@ -194,6 +206,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
     if (callKeyRef.current !== key) return;
     handlersRef.current = { ...handlersRef.current, ...handlers };
     if ('panels' in handlers) setPanels(handlers.panels);
+    if ('onDocumentUpload' in handlers) setDocUpload(uploadOf(handlers));
     tell(handlers.onDrawnShowing);
   }, [tell]);
 
@@ -320,6 +333,11 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
   const onEndCue = useCallback(() => h.current.onEndCue?.(), [h]);
   const onLeftCall = useCallback((how: LeftCallHow) => h.current.onLeftCall?.(how), [h]);
   const onRemovePerson = useCallback((p: { userId: string | null; name: string }) => h.current.onRemovePerson?.(p), [h]);
+  const onDocumentUpload = useCallback<DocumentUploadHandler>(async (req, file) => {
+    const upload = h.current.onDocumentUpload;
+    if (!upload) throw new Error('');
+    await upload(req, file);
+  }, [h]);
   // The drawn screen carries its own round buttons in the corner window; the text bar is for Prebuilt.
   const [drawnInUse, setDrawnInUse] = useState(false);
   const onScreenChange = useCallback((s: 'drawn' | 'prebuilt') => setDrawnInUse(s === 'drawn'), []);
@@ -374,6 +392,9 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             onLeftCall={onLeftCall}
             onRemovePerson={onRemovePerson}
             panels={panels}
+            onDocumentUpload={docUpload ? onDocumentUpload : undefined}
+            uploadMaxBytes={docUpload?.maxBytes}
+            uploadAccept={docUpload?.accept}
             onDrawnShowing={onDrawnShowing}
             onFailure={onFailure}
             onDeviceError={onDeviceError}

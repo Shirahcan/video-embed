@@ -9,6 +9,7 @@ import { useSingleTabCall } from '../hooks/useSingleTabCall';
 import { forgetInCall, rememberInCall } from '../callMemory';
 import { chooseCallScreen, preferStandardScreen, type CallScreen } from '../callScreen';
 import { DrawnStage, DrawnStageBoundary } from './DrawnStage';
+import type { DocumentUploadHandler } from '../drawnDocRequests';
 import { cx, useVideoUi } from '../theme';
 import { BackupCallOffer, type BackupCall } from './BackupCallOffer';
 import { KnockBar } from './KnockBar';
@@ -69,6 +70,10 @@ export interface CallFrameProps {
    * events keep it current. The standard screen ignores it (the product's notice stays).
    */
   transcribing?: boolean;
+  /** D1a: store a document someone in the drawn call asked this person for (DrawnStage `onDocumentUpload`). */
+  onDocumentUpload?: DocumentUploadHandler;
+  uploadMaxBytes?: number;
+  uploadAccept?: string;
   /** Every failure and its outcome, for the product's own record. */
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
@@ -195,7 +200,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, knockName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onRemovePerson, panels, onDrawnShowing, transcribing = false, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, knockName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onRemovePerson, panels, onDrawnShowing, transcribing = false, onDocumentUpload, uploadMaxBytes, uploadAccept, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
   // Call continuity: one id per browser, and what to do about the person's other device.
   const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
   // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
@@ -644,6 +649,9 @@ export function CallFrame({ url, userName = null, knockName = null, fetchFreshUr
               onRemovePerson={onRemovePerson}
               panels={panels}
               transcribing={transcribing}
+              onDocumentUpload={onDocumentUpload}
+              uploadMaxBytes={uploadMaxBytes}
+              uploadAccept={uploadAccept}
               onAnswer={(id, letIn) => void frame.call?.updateWaitingParticipant(id, { grantRequestedAccess: letIn }).catch(() => {})}
               onUseStandard={() => {
                 preferStandardScreen();

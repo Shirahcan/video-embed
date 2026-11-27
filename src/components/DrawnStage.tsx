@@ -1,4 +1,4 @@
-import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode, useCallback } from 'react';
+import { Component, useEffect, useId, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode, useCallback, useMemo } from 'react';
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js';
 import { cx, useVideoUi } from '../theme';
 import { BlurIcon, FullscreenIcon, LayoutIcon, MirrorIcon, PinIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, HandIcon, MicIcon, MicOffIcon, NoiseIcon, PeopleIcon, PresentIcon } from './icons';
@@ -17,6 +17,8 @@ import { DrawnLeaveMenu } from './DrawnLeaveMenu';
 import { DrawnChatPanel } from './DrawnChatPanel';
 import { DrawnPeoplePanel } from './DrawnPeoplePanel';
 import { DrawnNotices } from './DrawnNotices';
+import { DrawnDocRequestCards } from './DrawnDocRequestCards';
+import { DocRequestsContext, useDocRequests, type CallDocumentRequests, type DocumentUploadHandler } from '../drawnDocRequests';
 import { useHostControls } from '../hostControls';
 import { useDrawnChat } from '../drawnChat';
 import { useDrawnNetwork } from '../drawnNetwork';
@@ -77,9 +79,14 @@ export interface DrawnStageProps {
   panels?: CallPanel[];
   /** F6: the call is transcribed now (the product knows at join; Daily's events keep it current). */
   transcribing?: boolean;
+  /** D1a: store a document someone in the call asked this person for; without it, asks are ignored. */
+  onDocumentUpload?: DocumentUploadHandler;
+  /** D1a: the product's upload limit in bytes, and the file types its picker accepts. */
+  uploadMaxBytes?: number;
+  uploadAccept?: string;
 }
 
-export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices, waiting = [], onAnswer, onRemovePerson, panels = [], transcribing = false }: DrawnStageProps) {
+export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices, waiting = [], onAnswer, onRemovePerson, panels = [], transcribing = false, onDocumentUpload, uploadMaxBytes, uploadAccept }: DrawnStageProps) {
   const { labels } = useVideoUi();
   const devices = useDrawnDevices(call, { microphone: labels.microphone, camera: labels.camera, speaker: labels.speaker }, setDevices);
   // The browser refused to play the call's sound (no click on the page yet): one button fixes it.
@@ -209,6 +216,17 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
 
 
   const self = people.find((p) => p.local) ?? null;
+  const docs = useDocRequests(call, {
+    onUpload: onDocumentUpload,
+    maxBytes: uploadMaxBytes,
+    nameOf: (id) => people.find((p) => p.id === id)?.name || labels.knockSomeone,
+    tooLarge: labels.drawnDocTooLarge,
+    failed: labels.drawnDocFailed,
+  });
+  const docApi = useMemo<CallDocumentRequests>(
+    () => ({ people: people.filter((p) => !p.local).map((p) => ({ id: p.id, name: p.name, userId: p.userId ?? null })), ask: docs.ask, sent: docs.sent }),
+    [people, docs.ask, docs.sent],
+  );
   const others = people.filter((p) => !p.local);
   const chat = useDrawnChat(call, self?.name ?? '', chatOpen);
   const hands = useHandsAndReactions(call, self?.id ?? null, self?.handAt ?? null);
@@ -411,9 +429,14 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             <button type="button" className="ve-drawn__notice-btn" onClick={() => setPanel('people')}>{labels.drawnPeopleShort}</button>
           </p>
         ) : null}
+        {docs.canReceive && !inCorner ? <DrawnDocRequestCards requests={docs.incoming} onUpload={(r, f) => void docs.upload(r, f)} onLater={docs.later} accept={uploadAccept} /> : null}
       </DrawnNotices>
 
-      {productPanel ? <DrawnProductPanel panel={productPanel} onClose={() => setPanel(null)} /> : null}
+      {productPanel ? (
+        <DocRequestsContext.Provider value={docApi}>
+          <DrawnProductPanel panel={productPanel} onClose={() => setPanel(null)} />
+        </DocRequestsContext.Provider>
+      ) : null}
       {chatOpen ? <DrawnChatPanel messages={chat.messages} onSend={chat.send} onClose={() => setPanel(null)} /> : null}
       {peopleOpen ? (
         <DrawnPeoplePanel

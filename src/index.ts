@@ -14,6 +14,8 @@ export { canFloatDrawnCall, chooseCallScreen, clearStandardScreenPreference, isH
 export type { CallScreen } from './callScreen';
 export { DrawnStage, DrawnStageBoundary } from './components/DrawnStage';
 export type { CallPanel } from './components/DrawnProductPanel';
+export { useCallDocumentRequests, DOC_REQUEST_EVENT, DOC_RECEIVED_EVENT } from './drawnDocRequests';
+export type { CallDocumentRequests, DocRequest, DocumentUploadHandler, IncomingDocRequest, SentDocRequest } from './drawnDocRequests';
 export type { DrawnStageProps } from './components/DrawnStage';
 export { arrangeStage, arrangementLayers, chooseDrawnLayout, drawnPeople, fitTiles, presenterOf, receiveLayers } from './drawnLayout';
 export type { DrawnArrangement, DrawnLayout, DrawnLayoutMode, DrawnPerson } from './drawnLayout';

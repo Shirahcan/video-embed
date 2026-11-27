@@ -552,3 +552,8 @@
 .ve-panel--fill { width: min(420px, calc(100% - 24px)); }
 .ve-panel--fill .ve-panel__body { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 .ve-panel--fill .ve-panel__body > * { flex: 1; min-height: 0; }
+
+/* D1a: a document asked for in the call. */
+.ve-drawn__notice--doc { border-radius: 18px; }
+.ve-drawn__doc-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ve-drawn__doc-error { font-size: 12px; color: color-mix(in srgb, var(--ve-danger) 70%, #fff); }

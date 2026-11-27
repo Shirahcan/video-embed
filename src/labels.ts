@@ -203,6 +203,15 @@ export interface VideoLabels {
   drawnLowerHand: string;
   drawnHandRaised: string;
   drawnHandRaisedBy: (name: string) => string;
+  /** D1a: someone in the call asks this person for a document. */
+  drawnDocAsked: (name: string, title: string) => string;
+  drawnDocUploading: (title: string) => string;
+  drawnDocChoose: (title: string) => string;
+  drawnDocUpload: string;
+  drawnDocTryAgain: string;
+  drawnDocLater: string;
+  drawnDocTooLarge: (maxMb: number) => string;
+  drawnDocFailed: string;
   drawnYourHandUp: string;
   drawnPeopleLowerHand: string;
   drawnReactShort: string;
@@ -650,6 +659,14 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnLowerHand: 'Lower your hand',
   drawnHandRaised: 'Hand raised',
   drawnHandRaisedBy: (name) => `${name} raised a hand`,
+  drawnDocAsked: (name, title) => `${name} asks for: ${title}`,
+  drawnDocUploading: (title) => `Sending ${title}...`,
+  drawnDocChoose: (title) => `Choose the file for ${title}`,
+  drawnDocUpload: 'Upload',
+  drawnDocTryAgain: 'Try again',
+  drawnDocLater: 'Later',
+  drawnDocTooLarge: (maxMb) => `That file is larger than ${maxMb} MB. Choose a smaller one.`,
+  drawnDocFailed: 'The file could not be sent. Try again.',
   drawnYourHandUp: 'Your hand is raised. Everyone in the call can see it.',
   drawnPeopleLowerHand: 'Lower hand',
   drawnReactShort: 'React',
