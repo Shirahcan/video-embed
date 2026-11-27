@@ -36,6 +36,8 @@ export interface DockedCall {
   /** Where "Back to call" goes from the mini-player. */
   returnHref: string;
   userName?: string | null;
+  /** CallFrame `knockName`. */
+  knockName?: string | null;
   /** The viewer may end the call for everyone (pair with `handlers.onEndForEveryone`). */
   host?: boolean;
   scheduledEnd?: string | null;
@@ -111,6 +113,7 @@ function sameCall(a: DockedCall, b: DockedCall): boolean {
     a.url === b.url &&
     a.returnHref === b.returnHref &&
     (a.userName ?? null) === (b.userName ?? null) &&
+    (a.knockName ?? null) === (b.knockName ?? null) &&
     Boolean(a.host) === Boolean(b.host) &&
     (a.scheduledEnd ?? null) === (b.scheduledEnd ?? null) &&
     (a.startedAt ?? null) === (b.startedAt ?? null) &&
@@ -306,6 +309,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             className="ve-call--fill"
             url={call.url}
             userName={call.userName ?? null}
+            knockName={call.knockName ?? null}
             fetchFreshUrl={fetchFreshUrl}
             checkEnded={checkEnded}
             onEndForEveryone={call.host ? onEndForEveryone : undefined}

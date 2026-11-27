@@ -140,6 +140,17 @@ describe('which call screen a device gets', () => {
     await waitFor(() => expect(latest().joins[0]).toEqual({ url: URL_WITH_PASS }));
   });
 
+  it('knocks under the knock name a product gives a removed person (F1b)', async () => {
+    nextObject = { level: 'lobby' };
+    render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} knockName="Maria Garcia" />);
+    await waitFor(() => expect(latest().joins).toHaveLength(1));
+    act(() => latest().emit('joined-meeting'));
+    expect(await screen.findByText('Asking to join')).toBeTruthy();
+    expect(latest().knockedAs).toBe('Maria Garcia');
+    // Only the knock carries it: the join itself sends no name.
+    expect(JSON.stringify(latest().joins[0])).not.toContain('Maria Garcia');
+  });
+
   it('knocks from the drawn screen when the person lands in the lobby, and is not joined until let in', async () => {
     nextObject = { level: 'lobby' };
     const onJoined = vi.fn();

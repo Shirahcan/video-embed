@@ -31,6 +31,11 @@ export interface CallFrameProps {
   /** A guest's own name, for a URL with no pass: the host sees it when they knock. */
   userName?: string | null;
   /**
+   * The name a signed-in person knocks under when the product hands them NO pass (a host removed
+   * them, F1b): only the knock uses it, so the host sees who is asking. Never a join name.
+   */
+  knockName?: string | null;
+  /**
    * Ask the product for a FRESH join after a failure. The product's backend repairs the room
    * (same name, so every link still works), mints a new token and returns the new URL.
    * Without it, a failure can only be rejoined as-is.
@@ -176,7 +181,7 @@ async function stillAsking(): Promise<boolean> {
 /** Ending the call: the host's confirm, the request, and the call being over for everyone. */
 type EndStep = 'none' | 'confirm' | 'ending' | 'left-host' | 'ended';
 
-export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onRemovePerson, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
+export function CallFrame({ url, userName = null, knockName = null, fetchFreshUrl, onJoined, onLeft, onLeftCall, onRemovePerson, onFailure, onDeviceError, onKnock, onEndForEveryone, checkEnded, onEnded, presence, backup, scheduledEnd = null, endCueAction, startedAt = null, onParticipantsChange, micRef, overlay, aloneAfterMinutes = 15, singleTab = true, rememberAs = null, confirmLeave = false, drawn = false, compact = null, onScreenChange, continuity = false, enabled = true, className, style }: CallFrameProps) {
   // Call continuity: one id per browser, and what to do about the person's other device.
   const [deviceId] = useState<string | null>(() => (continuity && presence && !userName && typeof window !== 'undefined' ? presenceDeviceId() : null));
   // 'checking' until the service answers; 'other' when they are in on another device and have not chosen.
@@ -395,6 +400,7 @@ export function CallFrame({ url, userName = null, fetchFreshUrl, onJoined, onLef
     containerRef,
     url: joinUrl,
     userName,
+    knockName,
     enabled: enabled && !tab.heldElsewhere && continuityStep === 'clear',
     startQuiet: joinQuiet,
     mode: screen,

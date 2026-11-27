@@ -42,6 +42,11 @@ export interface UseDailyFrameOptions {
    * to the host on the knock. Ignored when the pass already names the person.
    */
   userName?: string | null;
+  /**
+   * The name a signed-in person knocks under when the product hands them NO pass (a host removed
+   * them, F1b): only the knock uses it, so the host sees who is asking. Never a join name.
+   */
+  knockName?: string | null;
   enabled?: boolean;
   onJoined?: () => void;
   onLeft?: () => void;
@@ -123,6 +128,7 @@ export function useDailyFrame({
   containerRef,
   url,
   userName = null,
+  knockName = null,
   enabled = true,
   onJoined,
   onLeft,
@@ -148,6 +154,7 @@ export function useDailyFrame({
   const handlersRef = useRef({ onJoined, onLeft, onDeviceError, onFailure, onKnock, onParticipantsChange, onLobby });
   const urlRef = useRef(url);
   const nameRef = useRef(userName);
+  const knockNameRef = useRef(knockName);
   const quietRef = useRef(startQuiet);
 
   // Latest callbacks and URL without rebuilding the frame (a re-minted token must not).
@@ -155,6 +162,7 @@ export function useDailyFrame({
     handlersRef.current = { onJoined, onLeft, onDeviceError, onFailure, onKnock, onParticipantsChange, onLobby };
     urlRef.current = url;
     nameRef.current = userName;
+    knockNameRef.current = knockName;
     quietRef.current = startQuiet;
   });
 
@@ -239,7 +247,7 @@ export function useDailyFrame({
               } catch {
                 /* torn down */
               }
-              return frame.requestAccess({ access: { level: 'full' }, name: nameRef.current?.trim() || callName || 'Guest' });
+              return frame.requestAccess({ access: { level: 'full' }, name: nameRef.current?.trim() || knockNameRef.current?.trim() || callName || 'Guest' });
             })
             .then((answer) => {
               if (answer.granted) {
