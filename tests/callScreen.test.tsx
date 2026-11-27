@@ -82,6 +82,16 @@ import { CallDockProvider, useCallDock, type DockedCall, type DockedCallHandlers
 import { useEffect, useState } from 'react';
 import { chooseCallScreen, preferStandardScreen, splitJoinUrl, STANDARD_SCREEN_KEY } from '../src/callScreen';
 
+/** Pop out and the product's panels live in More (owner 2026-11-27): open More, then pick the item. */
+async function fromMore(name: string) {
+  fireEvent.click(await screen.findByRole('button', { name: 'More options' }));
+  const menu = await screen.findByRole('menu', { name: 'More options' });
+  const item = [...menu.querySelectorAll<HTMLElement>('[role^="menuitem"]')].find((el) => (el.textContent ?? '').includes(name) || el.getAttribute('aria-label') === name);
+  if (!item) throw new Error(`No "${name}" in More`);
+  fireEvent.click(item);
+}
+
+
 const URL_WITH_PASS = 'https://shirah.daily.co/room-1?t=secret-pass';
 const latest = () => made[made.length - 1]!;
 const win = window as unknown as Record<string, unknown>;
@@ -476,10 +486,10 @@ describe('which call screen a device gets', () => {
       await waitFor(() => expect(latest().joins).toHaveLength(1));
       act(() => latest().emit('joined-meeting'));
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Notes' }));
+      await fromMore('Notes');
       expect((await screen.findByRole('region', { name: 'Notes' })).textContent).toContain('My notes body');
 
-      fireEvent.click(screen.getByRole('button', { name: 'Meeting details' }));
+      await fromMore('Meeting details');
       expect((await screen.findByRole('region', { name: 'Meeting details' })).textContent).toContain('Friday at 3 PM');
       expect(screen.queryByRole('region', { name: 'Notes' })).toBeNull();
 
@@ -494,9 +504,9 @@ describe('which call screen a device gets', () => {
       render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} panels={[{ key: 'x', label: 'Extra', icon: <span>x</span>, render: render2 }]} />);
       await waitFor(() => expect(latest().joins).toHaveLength(1));
       act(() => latest().emit('joined-meeting'));
-      await screen.findByRole('button', { name: 'Extra' });
+      await screen.findByRole('button', { name: 'More options' });
       expect(render2).not.toHaveBeenCalled();
-      fireEvent.click(screen.getByRole('button', { name: 'Extra' }));
+      await fromMore('Extra');
       fireEvent.click(await screen.findByRole('button', { name: 'Close Extra' }));
       expect(screen.queryByRole('region', { name: 'Extra' })).toBeNull();
     });
@@ -523,7 +533,7 @@ describe('which call screen a device gets', () => {
       );
       await waitFor(() => expect(latest().joins).toHaveLength(1));
       act(() => latest().emit('joined-meeting'));
-      fireEvent.click(await screen.findByRole('button', { name: 'Notes' }));
+      await fromMore('Notes');
       expect((await screen.findByRole('region', { name: 'Notes' })).textContent).toContain('first draft');
       act(() => type('second draft'));
       await waitFor(() => expect(screen.getByRole('region', { name: 'Notes' }).textContent).toContain('second draft'));
@@ -557,7 +567,7 @@ describe('which call screen a device gets', () => {
       const { rerender } = render(<App page="first" />);
       await waitFor(() => expect(latest().joins).toHaveLength(1));
       act(() => latest().emit('joined-meeting'));
-      await screen.findByRole('button', { name: 'Notes' });
+      await screen.findByRole('button', { name: 'More options' });
 
       rerender(<App page="away" />);
       // In the corner: four buttons, and no panel drawn from a page that is gone.
@@ -565,9 +575,36 @@ describe('which call screen a device gets', () => {
 
       rerender(<App page="back" />);
       await waitFor(() => expect(showing).toHaveBeenCalledWith(true));
-      fireEvent.click(await screen.findByRole('button', { name: 'Notes' }));
+      await fromMore('Notes');
       expect((await screen.findByRole('region', { name: 'Notes' })).textContent).toContain('new page');
       expect(latest().joins).toHaveLength(1);
+    });
+
+    it('keeps only what a call needs on the bar; Pop out and the product panels sit in More', async () => {
+      nextObject = { people: { local: me } } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} panels={panels} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      await screen.findByRole('button', { name: 'More options' });
+      const bar = [...document.querySelectorAll('.ve-drawn .ve-ctl__label')].map((x) => x.textContent);
+      expect(bar).not.toContain('Notes');
+      expect(bar).not.toContain('Pop out');
+      expect(bar).toEqual(expect.arrayContaining(['Mute', 'Chat', 'People', 'More', 'Leave']));
+      fireEvent.click(screen.getByRole('button', { name: 'More options' }));
+      const menu = await screen.findByRole('menu', { name: 'More options' });
+      expect(menu.textContent).toContain('Notes');
+      expect(menu.textContent).toContain('Meeting details');
+    });
+
+    it('hands a fill panel its whole body (an assistant chat scrolls itself)', async () => {
+      nextObject = { people: { local: me } } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} panels={[{ key: 'ask', label: 'Porter', title: 'Ask Porter', fill: true, icon: <span>p</span>, render: () => <div>chat</div> }]} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      await fromMore('Ask Porter');
+      const region = await screen.findByRole('region', { name: 'Ask Porter' });
+      expect(region.className).toContain('ve-panel--fill');
+      expect(region.querySelector('.ve-panel__body')?.textContent).toBe('chat');
     });
 
     it('tells the product while the drawn screen is up, and when it goes', async () => {

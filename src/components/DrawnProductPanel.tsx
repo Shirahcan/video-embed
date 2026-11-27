@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { useVideoUi } from '../theme';
+import { cx, useVideoUi } from '../theme';
 import { CloseIcon } from './icons';
 
 /**
@@ -20,6 +20,11 @@ export interface CallPanel {
   priority?: number;
   /** A count on the control (unread items, say); 0 or absent shows none. */
   badge?: number;
+  /**
+   * The content brings its own scrolling and edges (an assistant's chat): the panel is a little wider
+   * and hands its whole body over, with no padding and no scroller of its own (P1).
+   */
+  fill?: boolean;
   /** The panel's content. Called only while the panel is open. */
   render: () => ReactNode;
 }
@@ -34,7 +39,7 @@ export function DrawnProductPanel({ panel, onClose }: { panel: CallPanel; onClos
   }, [panel.key]);
 
   return (
-    <section className="ve-chat ve-panel" aria-label={title} data-panel={panel.key}>
+    <section className={cx('ve-chat ve-panel', panel.fill && 've-panel--fill')} aria-label={title} data-panel={panel.key}>
       <header className="ve-chat__head">
         <h2 className="ve-chat__title">{title}</h2>
         <button ref={closeRef} type="button" className="ve-chat__close" aria-label={labels.drawnPanelClose(title)} title={labels.drawnPanelClose(title)} onClick={onClose}>

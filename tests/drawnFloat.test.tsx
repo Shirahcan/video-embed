@@ -5,6 +5,16 @@ import { DrawnStage } from '../src/components/DrawnStage';
 import { APP_SWITCH_MIN_MS, APP_SWITCH_TIP_KEY, copyStyles, useAppSwitchTip } from '../src/drawnFloat';
 import { foldControls } from '../src/barFold';
 
+/** Pop out and the product's panels live in More (owner 2026-11-27): open More, then pick the item. */
+async function fromMore(name: string) {
+  fireEvent.click(await screen.findByRole('button', { name: 'More options' }));
+  const menu = await screen.findByRole('menu', { name: 'More options' });
+  const item = [...menu.querySelectorAll<HTMLElement>('[role^="menuitem"]')].find((el) => (el.textContent ?? '').includes(name) || el.getAttribute('aria-label') === name);
+  if (!item) throw new Error(`No "${name}" in More`);
+  fireEvent.click(item);
+}
+
+
 type Handler = (event?: unknown) => void;
 class FloatCall {
   handlers = new Map<string, Handler[]>();
@@ -89,7 +99,7 @@ describe('the floating window', () => {
     const call = new FloatCall();
     stage(call);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Pop the call out into a small window' }));
+      await fromMore('Pop the call out');
     });
     expect(requestWindow).toHaveBeenCalledWith({ width: 360, height: 420 });
     expect(screen.getByText('Your call is in the small window')).toBeTruthy();
@@ -110,7 +120,7 @@ describe('the floating window', () => {
     const { win } = fakePip();
     stage(new FloatCall());
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Pop the call out into a small window' }));
+      await fromMore('Pop the call out');
     });
     act(() => win.close());
     expect(screen.queryByText('Your call is in the small window')).toBeNull();
@@ -121,7 +131,7 @@ describe('the floating window', () => {
     const onLeave = vi.fn();
     stage(new FloatCall(), onLeave);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Pop the call out into a small window' }));
+      await fromMore('Pop the call out');
     });
     act(() => {
       (doc.body.querySelector('button[aria-label="Leave"]') as HTMLElement).click();
@@ -134,7 +144,7 @@ describe('the floating window', () => {
     (window as unknown as { documentPictureInPicture?: unknown }).documentPictureInPicture = { requestWindow: () => Promise.reject(new Error('no gesture')), window: null };
     stage(new FloatCall());
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Pop the call out into a small window' }));
+      await fromMore('Pop the call out');
     });
     expect(screen.getByText('The small window could not open. Try Pop out again.')).toBeTruthy();
   });
@@ -278,7 +288,7 @@ describe('a bar that never overflows (B1)', () => {
     const { doc } = fakePip();
     stage(new FloatCall());
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Pop the call out into a small window' }));
+      await fromMore('Pop the call out');
     });
     expect(doc.body.querySelectorAll('button')).toHaveLength(4);
   });

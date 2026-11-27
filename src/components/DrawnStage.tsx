@@ -215,20 +215,22 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
   const handNotice = useRaisedHandNotice(people);
   const handsUp = others.filter((p) => p.handAt).length;
   const appSwitch = useAppSwitchTip(float.supported && !float.host && !compact && access !== 'asking' && access !== 'denied');
-  // B1: the bar never overflows. Pop out folds into More first, then Present, then Chat; mic,
-  // camera, More and Leave always stay.
+  // The bar holds only what a call needs at hand (owner 2026-11-27: "important buttons on it, the
+  // rest inside More"): mic, camera, Present, React, Hand, Chat, People, More and Leave. Pop out and
+  // the product's own panels (notes, details, an assistant) always live in More.
+  // B1 on top: the bar never overflows. React folds into More first, then Present, Chat, Hand and
+  // People; mic, camera, More and Leave always stay.
   const barRef = useRef<HTMLDivElement>(null);
+  const inMore = (key: string) => key === 'float' || key.startsWith('p:');
   const foldable: FoldableControl[] = [
-    ...(float.supported ? [{ key: 'float', priority: 1 }] : []),
     ...(effects.support.present ? [{ key: 'present', priority: 2 }] : []),
-    { key: 'react', priority: 2.5 },
+    { key: 'react', priority: 1.5 },
     { key: 'chat', priority: 3 },
     { key: 'hand', priority: 3.5 },
     { key: 'people', priority: 4 },
-    ...panels.map((x) => ({ key: `p:${x.key}`, priority: x.priority ?? 2 })),
   ];
   const folded = useBarFold(rootRef, barRef, foldable);
-  const isFolded = (key: string) => folded.includes(key);
+  const isFolded = (key: string) => inMore(key) || folded.includes(key);
   const micOff = self ? !self.audioOn : false;
   // "The host muted you" holds only while the microphone is still off.
   const mutedByHost = hostControls.mutedByHost && micOff;
