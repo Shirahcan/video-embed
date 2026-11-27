@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { DrawnPerson } from '../drawnLayout';
 import { cx } from '../theme';
 import { MicOffIcon, HandIcon, PinIcon } from './icons';
+import { initialsOf } from '../initials';
 
 /**
  * Keeps a media element playing one track; the element itself never changes, so it can move windows.
@@ -28,9 +29,6 @@ export function useMediaTrack(track: MediaStreamTrack | null, onBlocked?: () => 
   return ref;
 }
 
-function initialsOf(name: string): string {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
-}
 
 export function Tile({ person, label, mutedLabel, speaking = false, variant = 'stage', mirror = true, handLabel, reaction = null, pin = null }: {
   person: DrawnPerson;

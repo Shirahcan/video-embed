@@ -85,3 +85,14 @@ describe('ShareCallLink', () => {
     expect(linkForSeat).toHaveBeenLastCalledWith('Amara Obi', 'dependant');
   });
 });
+
+import { initialsOf } from '../src/initials';
+describe('initialsOf', () => {
+  it('takes first and last names and ignores a trailing role', () => {
+    expect(initialsOf('Amara Obi (Interpreter)')).toBe('AO');
+    expect(initialsOf('Maria del Carmen Garcia')).toBe('MG');
+    expect(initialsOf('  ')).toBe('?');
+    expect(initialsOf('(Guest)')).toBe('?');
+    expect(initialsOf('élodie')).toBe('É');
+  });
+});

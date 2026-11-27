@@ -3,6 +3,7 @@ import type { DrawnPerson } from '../drawnLayout';
 import type { WaitingPerson } from '../hooks/useDailyFrame';
 import { cx, useVideoUi } from '../theme';
 import { CameraOffIcon, CloseIcon, HandIcon, KebabIcon, MicIcon, MicOffIcon } from './icons';
+import { initialsOf } from '../initials';
 
 export interface DrawnPeoplePanelProps {
   people: DrawnPerson[];
@@ -14,12 +15,7 @@ export interface DrawnPeoplePanelProps {
   onClose: () => void;
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? '?';
-  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? '' : '';
-  return (first + last).toUpperCase();
-}
+const initials = initialsOf;
 
 /** One person's row actions for a host: Mute, then Remove from the call (asks first). */
 function RowMenu({ person, onMute, onRemove, onLowerHand }: { person: DrawnPerson; onMute: () => void; onRemove: () => void; onLowerHand: () => void }) {
