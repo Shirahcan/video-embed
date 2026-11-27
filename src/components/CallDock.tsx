@@ -15,6 +15,7 @@ import type { PresenceKind, PresenceOptions, PresenceSender } from '../hooks/use
 import type { CallParticipant, WaitingPerson } from '../hooks/useDailyFrame';
 import { cx, useVideoUi } from '../theme';
 import { CallFrame, type LeftCallHow, type RecoveryStatus } from './CallFrame';
+import type { CallPanel } from './DrawnProductPanel';
 
 /**
  * The call follows the person around the product.
@@ -70,6 +71,8 @@ export interface DockedCallHandlers {
   onLeftCall?: (how: LeftCallHow) => void;
   /** A host removed someone (CallFrame `onRemovePerson`). */
   onRemovePerson?: (person: { userId: string | null; name: string }) => void;
+  /** The page's own call panels (CallFrame `panels`). */
+  panels?: CallPanel[];
   onFailure?: (failure: CallFailure, recovery: RecoveryStatus) => void;
   onDeviceError?: (diagnosis: MediaDiagnosis) => void;
   onKnock?: (person: WaitingPerson) => void;
@@ -325,6 +328,7 @@ export function CallDockProvider({ children, navigate, className }: CallDockProv
             onLeft={onLeft}
             onLeftCall={onLeftCall}
             onRemovePerson={onRemovePerson}
+            panels={h.current.panels}
             onFailure={onFailure}
             onDeviceError={onDeviceError}
             onKnock={onKnock}

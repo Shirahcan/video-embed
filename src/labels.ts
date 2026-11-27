@@ -178,6 +178,10 @@ export interface VideoLabels {
   drawnMutedByHost: string;
   /** Raise hand and reactions (F2). */
   drawnHandShort: string;
+  /** Closing a product's own side panel (F3). */
+  drawnPanelClose: (title: string) => string;
+  /** Once per device after someone switched to another app mid-call (Chrome only auto-floats on a tab switch). */
+  drawnAppSwitchTip: string;
   drawnRaiseHand: string;
   drawnLowerHand: string;
   drawnHandRaised: string;
@@ -608,6 +612,8 @@ export const DEFAULT_VIDEO_LABELS: VideoLabels = {
   drawnRemoveCancel: 'Cancel',
   drawnMutedByHost: 'The host muted you. Unmute when you are ready to speak.',
   drawnHandShort: 'Hand',
+  drawnPanelClose: (title) => `Close ${title}`,
+  drawnAppSwitchTip: 'Switching to another app? Press Pop out first and the call stays on top of everything.',
   drawnRaiseHand: 'Raise your hand',
   drawnLowerHand: 'Lower your hand',
   drawnHandRaised: 'Hand raised',

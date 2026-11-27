@@ -461,6 +461,51 @@ describe('which call screen a device gets', () => {
     });
   });
 
+  describe('product panels (F3)', () => {
+    const me = { session_id: 'me', user_name: 'Fatima', local: true, owner: true, tracks: { audio: { state: 'playable' }, video: { state: 'off' } } };
+    const panels = [
+      { key: 'notes', label: 'Notes', icon: <span>N</span>, badge: 2, render: () => <p>My notes body</p> },
+      { key: 'info', label: 'Details', title: 'Meeting details', icon: <span>i</span>, render: () => <p>Friday at 3 PM</p> },
+    ];
+
+    it('draws a bar control per panel, opens one at a time, and shares the slot with Chat', async () => {
+      nextObject = { people: { local: me } } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} panels={panels} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Notes' }));
+      expect((await screen.findByRole('region', { name: 'Notes' })).textContent).toContain('My notes body');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Meeting details' }));
+      expect((await screen.findByRole('region', { name: 'Meeting details' })).textContent).toContain('Friday at 3 PM');
+      expect(screen.queryByRole('region', { name: 'Notes' })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Chat with everyone' }));
+      expect(screen.queryByRole('region', { name: 'Meeting details' })).toBeNull();
+      expect(document.querySelectorAll('.ve-chat')).toHaveLength(1);
+    });
+
+    it('closes from its own close button, and the product content is drawn only while open', async () => {
+      const render2 = vi.fn(() => <p>Lazy</p>);
+      nextObject = { people: { local: me } } as never;
+      render(<CallFrame url={URL_WITH_PASS} drawn singleTab={false} panels={[{ key: 'x', label: 'Extra', icon: <span>x</span>, render: render2 }]} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      act(() => latest().emit('joined-meeting'));
+      await screen.findByRole('button', { name: 'Extra' });
+      expect(render2).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Extra' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Close Extra' }));
+      expect(screen.queryByRole('region', { name: 'Extra' })).toBeNull();
+    });
+
+    it('is ignored on the standard screen', async () => {
+      render(<CallFrame url={URL_WITH_PASS} singleTab={false} panels={panels} />);
+      await waitFor(() => expect(latest().joins).toHaveLength(1));
+      expect(screen.queryByRole('button', { name: 'Notes' })).toBeNull();
+    });
+  });
+
   describe('raise hand and reactions (F2)', () => {
     const me = { session_id: 'me', user_name: 'Fatima', local: true, owner: true, tracks: { audio: { state: 'playable' }, video: { state: 'off' } } };
     const guest = { session_id: 'g1', user_name: 'Maria Garcia', user_id: 'u-maria', local: false, tracks: { audio: { state: 'playable' }, video: { state: 'off' } } };

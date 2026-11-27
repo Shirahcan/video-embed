@@ -1,8 +1,8 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyCall } from '@daily-co/daily-js';
 import { DrawnStage } from '../src/components/DrawnStage';
-import { copyStyles } from '../src/drawnFloat';
+import { APP_SWITCH_MIN_MS, APP_SWITCH_TIP_KEY, copyStyles, useAppSwitchTip } from '../src/drawnFloat';
 import { foldControls } from '../src/barFold';
 
 type Handler = (event?: unknown) => void;
@@ -246,6 +246,15 @@ describe('a bar that never overflows (B1)', () => {
     expect(foldControls(controls, widths, 300, 14, 200)).toEqual(['float', 'present', 'chat']);
   });
 
+  it("folds a product's panel (default priority 2) before Chat and People (F3)", () => {
+    const withPanel = [...controls, { key: 'p:notes', priority: 2 }, { key: 'people', priority: 4 }];
+    const w = { ...widths, 'p:notes': 60, people: 60 };
+    // fixed 300 + 5 x 74 = 670; 600 needs one fold, 520 two: float, then the panel before chat.
+    expect(foldControls(withPanel, w, 300, 14, 600)).toEqual(['float']);
+    expect(foldControls(withPanel, w, 300, 14, 520).slice(0, 2)).toContain('float');
+    expect(foldControls(withPanel, w, 300, 14, 380)).not.toContain('people');
+  });
+
   it('moves a control that does not fit into More, where it still works', async () => {
     fakePip();
     const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(280);
@@ -275,3 +284,67 @@ describe('a bar that never overflows (B1)', () => {
   });
 });
 
+
+describe('the app-switch tip (owner 2026-11-27)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    window.localStorage.removeItem(APP_SWITCH_TIP_KEY);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function leaveAndReturn(ms: number) {
+    act(() => {
+      window.dispatchEvent(new Event('blur'));
+      vi.advanceTimersByTime(1);
+    });
+    act(() => {
+      vi.advanceTimersByTime(ms);
+      window.dispatchEvent(new Event('focus'));
+    });
+  }
+
+  it('says once, after someone was away in another app, that Pop out first keeps the call on top', () => {
+    const { result } = renderHook(() => useAppSwitchTip(true));
+    leaveAndReturn(APP_SWITCH_MIN_MS + 100);
+    expect(result.current.show).toBe(true);
+    act(() => result.current.dismiss());
+    expect(result.current.show).toBe(false);
+    expect(window.localStorage.getItem(APP_SWITCH_TIP_KEY)).toBe('seen');
+  });
+
+  it('does not show for a stray focus blip, once seen, or while the call cannot float', () => {
+    const blip = renderHook(() => useAppSwitchTip(true));
+    leaveAndReturn(500);
+    expect(blip.result.current.show).toBe(false);
+    blip.unmount();
+
+    const off = renderHook(() => useAppSwitchTip(false));
+    leaveAndReturn(APP_SWITCH_MIN_MS + 100);
+    expect(off.result.current.show).toBe(false);
+    off.unmount();
+
+    window.localStorage.setItem(APP_SWITCH_TIP_KEY, 'seen');
+    const seen = renderHook(() => useAppSwitchTip(true));
+    leaveAndReturn(APP_SWITCH_MIN_MS + 100);
+    expect(seen.result.current.show).toBe(false);
+  });
+
+  it('does not count a tab switch (the page was hidden, and the corner window handles that)', () => {
+    const { result } = renderHook(() => useAppSwitchTip(true));
+    act(() => {
+      window.dispatchEvent(new Event('blur'));
+      vi.advanceTimersByTime(1);
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    act(() => {
+      vi.advanceTimersByTime(APP_SWITCH_MIN_MS + 100);
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(result.current.show).toBe(false);
+  });
+});

@@ -375,6 +375,8 @@
 
 /* F1: who is in the call, in the chat's place. */
 .ve-people__body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 10px 14px; }
+/* A product's own panel (F3): the kit's frame, the product's content; the body scrolls on short screens. */
+.ve-panel__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 18px 16px; }
 .ve-people__heading { margin: 10px 8px 6px; font-size: 12px; font-weight: 600; color: var(--ve-ink-muted); }
 .ve-people__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .ve-people__row { position: relative; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 8px; border-radius: 14px; }

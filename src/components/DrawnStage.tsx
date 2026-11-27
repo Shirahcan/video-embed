@@ -4,10 +4,11 @@ import { cx, useVideoUi } from '../theme';
 import { BlurIcon, MirrorIcon, PopOutIcon, CameraIcon, CameraOffIcon, ChatIcon, HandIcon, MicIcon, MicOffIcon, NoiseIcon, PeopleIcon, PresentIcon } from './icons';
 import { REACTIONS, useHandsAndReactions, useRaisedHandNotice } from '../drawnHands';
 import { DrawnReactMenu } from './DrawnReactMenu';
+import { DrawnProductPanel, type CallPanel } from './DrawnProductPanel';
 import { PRESENT_OPTIONS, useDrawnEffects } from '../drawnEffects';
 import { prefersMirroredSelf, setMirroredSelf } from '../callScreen';
 import { createPortal } from 'react-dom';
-import { useDrawnFloat } from '../drawnFloat';
+import { useAppSwitchTip, useDrawnFloat } from '../drawnFloat';
 import { useBarFold, type FoldableControl } from '../barFold';
 import { DrawnFloat } from './DrawnFloat';
 import { Control } from './DrawnControl';
@@ -69,18 +70,22 @@ export interface DrawnStageProps {
   onAnswer?: (id: string, letIn: boolean) => void;
   /** A host removed someone: the product records it, so their way back is asking to join (F1b). */
   onRemovePerson?: (person: { userId: string | null; name: string }) => void;
+  /** The product's own side panels (F3); never shown in the float or the corner window. */
+  panels?: CallPanel[];
 }
 
-export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices, waiting = [], onAnswer, onRemovePerson }: DrawnStageProps) {
+export function DrawnStage({ call, access = null, compact = null, onLeave, onEndForEveryone, onUseStandard, setDevices, waiting = [], onAnswer, onRemovePerson, panels = [] }: DrawnStageProps) {
   const { labels } = useVideoUi();
   const devices = useDrawnDevices(call, { microphone: labels.microphone, camera: labels.camera, speaker: labels.speaker }, setDevices);
   // The browser refused to play the call's sound (no click on the page yet): one button fixes it.
   const [soundBlocked, setSoundBlocked] = useState(false);
   // One side panel at a time: the chat or the people (F1), each sliding over the stage.
-  const [panel, setPanel] = useState<'chat' | 'people' | null>(null);
+  // 'chat', 'people', or a product panel as `p:<key>`: one panel at a time shares the slot.
+  const [panel, setPanel] = useState<string | null>(null);
   const chatOpen = panel === 'chat';
   const peopleOpen = panel === 'people';
-  const togglePanel = (which: 'chat' | 'people') => setPanel((p) => (p === which ? null : which));
+  const togglePanel = (which: string) => setPanel((p) => (p === which ? null : which));
+  const productPanel = panels.find((x) => panel === `p:${x.key}`) ?? null;
   const hostControls = useHostControls(call);
   const connection = useDrawnNetwork(call);
   const effects = useDrawnEffects(call);
@@ -187,6 +192,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
   const hands = useHandsAndReactions(call, self?.id ?? null, self?.handAt ?? null);
   const handNotice = useRaisedHandNotice(people);
   const handsUp = others.filter((p) => p.handAt).length;
+  const appSwitch = useAppSwitchTip(float.supported && !float.host && !compact && access !== 'asking' && access !== 'denied');
   // B1: the bar never overflows. Pop out folds into More first, then Present, then Chat; mic,
   // camera, More and Leave always stay.
   const barRef = useRef<HTMLDivElement>(null);
@@ -197,6 +203,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
     { key: 'chat', priority: 3 },
     { key: 'hand', priority: 3.5 },
     { key: 'people', priority: 4 },
+    ...panels.map((x) => ({ key: `p:${x.key}`, priority: x.priority ?? 2 })),
   ];
   const folded = useBarFold(rootRef, barRef, foldable);
   const isFolded = (key: string) => folded.includes(key);
@@ -366,6 +373,14 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             <button type="button" className="ve-drawn__notice-btn" onClick={hands.toggleHand}>{labels.drawnLowerHand}</button>
           </p>
         ) : null}
+        {appSwitch.show ? (
+          <p className="ve-drawn__notice" role="status">
+            <PopOutIcon width={16} height={16} />
+            <span>{labels.drawnAppSwitchTip}</span>
+            <button type="button" className="ve-drawn__notice-btn" onClick={() => { appSwitch.dismiss(); void float.open(); }}>{labels.drawnFloat}</button>
+            <button type="button" className="ve-drawn__notice-btn ve-drawn__notice-btn--quiet" onClick={appSwitch.dismiss}>{labels.drawnDismiss}</button>
+          </p>
+        ) : null}
         {handNotice.notice ? (
           <p className="ve-drawn__notice" role="status">
             <HandIcon width={16} height={16} />
@@ -375,6 +390,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
         ) : null}
       </DrawnNotices>
 
+      {productPanel ? <DrawnProductPanel panel={productPanel} onClose={() => setPanel(null)} /> : null}
       {chatOpen ? <DrawnChatPanel messages={chat.messages} onSend={chat.send} onClose={() => setPanel(null)} /> : null}
       {peopleOpen ? (
         <DrawnPeoplePanel
@@ -469,6 +485,14 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
           />
           {chat.unread > 0 ? <span className="ve-ctl-badge" aria-hidden="true">{chat.unread > 9 ? '9+' : chat.unread}</span> : null}
         </span>}
+        {panels.map((x) =>
+          isFolded(`p:${x.key}`) ? null : (
+            <span key={x.key} className="ve-ctl-badged" data-fold-key={`p:${x.key}`}>
+              <Control label={x.label} ariaLabel={x.title ?? x.label} pressed={panel === `p:${x.key}`} onClick={() => togglePanel(`p:${x.key}`)} icon={x.icon} />
+              {x.badge ? <span className="ve-ctl-badge" aria-hidden="true">{x.badge > 9 ? '9+' : x.badge}</span> : null}
+            </span>
+          ),
+        )}
         {isFolded('hand') ? null : (
           <span className="ve-ctl-slot" data-fold-key="hand">
             <Control
@@ -497,6 +521,7 @@ export function DrawnStage({ call, access = null, compact = null, onLeave, onEnd
             ...(isFolded('present') ? [{ key: 'present', title: presenting ? labels.drawnPresentStop : labels.drawnPresent, icon: <PresentIcon />, pressed: presenting, onSelect: togglePresent }] : []),
             ...(isFolded('react') ? REACTIONS.map((emoji) => ({ key: `react-${emoji}`, title: labels.drawnReactionName(emoji), icon: <span aria-hidden="true">{emoji}</span>, pressed: false, onSelect: () => hands.react(emoji) })) : []),
             ...(isFolded('hand') ? [{ key: 'hand', title: hands.handUp ? labels.drawnLowerHand : labels.drawnRaiseHand, icon: <HandIcon />, pressed: hands.handUp, onSelect: hands.toggleHand }] : []),
+            ...panels.filter((x) => isFolded(`p:${x.key}`)).map((x) => ({ key: `p:${x.key}`, title: x.title ?? x.label, icon: x.icon, pressed: panel === `p:${x.key}`, badge: x.badge, onSelect: () => togglePanel(`p:${x.key}`) })),
             ...(isFolded('chat') ? [{ key: 'chat', title: chat.unread > 0 ? labels.drawnChatUnread(chat.unread) : labels.drawnChat, icon: <ChatIcon />, pressed: chatOpen, badge: chat.unread, onSelect: () => togglePanel('chat') }] : []),
             ...(isFolded('people') ? [{ key: 'people', title: labels.drawnPeople, icon: <PeopleIcon />, pressed: peopleOpen, badge: knocking + handsUp, onSelect: () => togglePanel('people') }] : []),
           ]}

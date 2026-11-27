@@ -153,3 +153,66 @@ export function useDrawnFloat(themeFrom: () => HTMLElement | null) {
 
   return { supported, host, open, close, failed, dismissFailed: () => setFailed(false), autoFloat, toggleAuto };
 }
+
+/** Remembered on this device once the person has seen (or dismissed) the app-switch tip. */
+export const APP_SWITCH_TIP_KEY = 've_float_app_switch_tip';
+/** Away at least this long counts as switching to another app (not a stray focus blip). */
+export const APP_SWITCH_MIN_MS = 3000;
+
+/**
+ * Chrome opens the corner window by itself only on a TAB switch; switching to another app's window
+ * gives a page no way to open it (owner 2026-11-27 asked; Chrome needs a click for that). So when
+ * someone comes back after leaving the window mid-call with the tab still showing, say once, on this
+ * device, that Pop out first keeps the call on top. A tab switch is not counted (the page was hidden
+ * and the corner window handled it), and neither is focus moving into a frame inside the page.
+ */
+export function useAppSwitchTip(active: boolean) {
+  const [show, setShow] = useState(false);
+  const leftAt = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!active) return undefined;
+    let seen = false;
+    try {
+      seen = window.localStorage.getItem(APP_SWITCH_TIP_KEY) === 'seen';
+    } catch {
+      seen = false;
+    }
+    if (seen) return undefined;
+    const onBlur = () => {
+      // Focus moving into an iframe on this page blurs the window too; that is not leaving.
+      setTimeout(() => {
+        if (document.activeElement instanceof HTMLIFrameElement) return;
+        if (document.visibilityState !== 'visible') return;
+        leftAt.current = Date.now();
+      }, 0);
+    };
+    const onHidden = () => {
+      if (document.visibilityState !== 'visible') leftAt.current = null;
+    };
+    const onFocus = () => {
+      const at = leftAt.current;
+      leftAt.current = null;
+      if (at !== null && Date.now() - at >= APP_SWITCH_MIN_MS && document.visibilityState === 'visible') setShow(true);
+    };
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onHidden);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onHidden);
+    };
+  }, [active]);
+
+  const dismiss = useCallback(() => {
+    setShow(false);
+    try {
+      window.localStorage.setItem(APP_SWITCH_TIP_KEY, 'seen');
+    } catch {
+      /* private window: it may show again next call, which is harmless */
+    }
+  }, []);
+
+  return { show: show && active, dismiss };
+}

@@ -13,6 +13,7 @@ export type { CallAccess, CallParticipant, FrameState, UseDailyFrameOptions, Use
 export { canFloatDrawnCall, chooseCallScreen, clearStandardScreenPreference, isHandheld, preferStandardScreen, prefersStandardScreen, splitJoinUrl, STANDARD_SCREEN_KEY } from './callScreen';
 export type { CallScreen } from './callScreen';
 export { DrawnStage, DrawnStageBoundary } from './components/DrawnStage';
+export type { CallPanel } from './components/DrawnProductPanel';
 export type { DrawnStageProps } from './components/DrawnStage';
 export { chooseDrawnLayout, drawnPeople, fitTiles, presenterOf, receiveLayers } from './drawnLayout';
 export type { DrawnLayout, DrawnPerson } from './drawnLayout';
